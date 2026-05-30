@@ -482,6 +482,25 @@
       transition: transform .45s ease;
     }
     .project-card:hover .portfolio-bg { transform: scale(1.04); }
+    .project-card-badge {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      z-index: 2;
+      min-height: 34px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: .45rem .72rem;
+      border: 1px solid rgba(214, 200, 173, .38);
+      background: rgba(7, 16, 20, .78);
+      color: var(--gold);
+      font-size: .66rem;
+      font-weight: 800;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      backdrop-filter: blur(4px);
+    }
     .project-card-body {
       padding: 1.35rem;
     }
@@ -499,6 +518,119 @@
       font-weight: 300;
       line-height: 1.65;
       opacity: .66;
+    }
+    .project-album-btn {
+      margin-top: 1.1rem;
+      min-height: 40px;
+      padding: .65rem 1rem;
+      border: 1px solid rgba(192,142,98,.56);
+      background: rgba(192,142,98,.12);
+      color: var(--bone);
+      font: inherit;
+      font-size: .72rem;
+      font-weight: 800;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: background .2s, border-color .2s, transform .2s;
+    }
+    .project-album-btn:hover {
+      background: rgba(192,142,98,.22);
+      border-color: var(--rust);
+      transform: translateY(-1px);
+    }
+    .project-album-btn:disabled {
+      cursor: default;
+      opacity: .48;
+      transform: none;
+    }
+    .project-album-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 700;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+      background: rgba(4, 10, 13, .82);
+      backdrop-filter: blur(8px);
+    }
+    .project-album-overlay.open { display: flex; }
+    .project-album-modal {
+      width: min(980px, 100%);
+      max-height: calc(100vh - 2rem);
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      padding: 1.25rem;
+      border: 1px solid rgba(214, 200, 173, .24);
+      background: var(--charcoal);
+      box-shadow: 0 30px 80px rgba(0,0,0,.55);
+    }
+    .project-album-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 1rem;
+    }
+    .album-category {
+      display: block;
+      margin-bottom: .35rem;
+      color: var(--gold);
+      font-size: .68rem;
+      font-weight: 800;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+    .album-title {
+      color: var(--bone);
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 2.2rem;
+      line-height: 1;
+      letter-spacing: .05em;
+    }
+    .album-frame {
+      min-height: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--dark);
+      overflow: hidden;
+    }
+    .album-photo {
+      width: 100%;
+      max-height: 68vh;
+      object-fit: contain;
+      display: block;
+    }
+    .album-controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+    }
+    .album-controls button {
+      min-height: 40px;
+      padding: .65rem 1rem;
+      border: 1px solid rgba(214, 200, 173, .28);
+      background: transparent;
+      color: var(--bone);
+      font: inherit;
+      font-size: .72rem;
+      font-weight: 800;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      cursor: pointer;
+    }
+    .album-controls button:disabled {
+      opacity: .42;
+      cursor: default;
+    }
+    .album-counter {
+      color: var(--gold);
+      font-size: .76rem;
+      font-weight: 800;
+      letter-spacing: .12em;
     }
     .projects-loading,
     .projects-empty {
@@ -800,6 +932,9 @@
       .portfolio-item:first-child { grid-row: auto; }
       .projects-page-grid { grid-template-columns: 1fr; }
       .projects-list-header { align-items: flex-start; flex-direction: column; }
+      .project-album-modal { padding: 1rem; }
+      .album-title { font-size: 1.8rem; }
+      .album-controls button { padding: .65rem .75rem; }
       .testimonials-grid { grid-template-columns: 1fr; }
       .footer-top { grid-template-columns: 1fr 1fr; }
       .footer-bottom { flex-direction: column; align-items: flex-start; gap: 1rem; }

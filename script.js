@@ -11,6 +11,16 @@ const db = window.supabase
   : null;
 
 let clienteLogado = null;
+let projectAlbums = [];
+
+function escapeHtml(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
 
 function normalizeEmail(value) {
   return (value || "").trim().toLowerCase();
@@ -182,19 +192,27 @@ async function fetchPortfolioData() {
 
     if (error) throw error;
 
-    return data.map((projeto, index) => ({
+    return data.map((projeto, index) => {
+      const photos = (projeto.project_photos || [])
+        .map((photo) => photo.photo_url)
+        .filter(Boolean);
+
+      return {
       id: projeto.id,
       category: projeto.description || "Projeto",
       description: projeto.description || "Projeto Edifique",
       name: projeto.name,
-      photoUrl: projeto.project_photos?.[0]?.photo_url || "",
-      bgClass: !projeto.project_photos?.length
+      photos,
+      photoUrl: photos[0] || "",
+      photoCount: photos.length,
+      bgClass: !photos.length
         ? `p${(index % 5) + 1}`
         : "",
-      bgStyle: projeto.project_photos?.[0]?.photo_url
-        ? `style="background-image:url('${projeto.project_photos[0].photo_url}')"`
+      bgStyle: photos[0]
+        ? `style="background-image:url('${photos[0]}')"`
         : ""
-    }));
+      };
+    });
   } catch (error) {
     console.error("Erro ao carregar projetos:", error);
     return [];
@@ -292,33 +310,149 @@ function renderProjectsPage(data) {
   }
 
   if (!data.length) {
+    projectAlbums = [];
     grid.innerHTML = "";
     if (empty) empty.hidden = false;
     return;
   }
 
   if (empty) empty.hidden = true;
+  projectAlbums = data;
 
   grid.innerHTML = data
     .map(
-      (item) => `
-      <article class="project-card reveal">
+      (item, index) => {
+        const photoLabel =
+          item.photoCount === 0
+            ? "Sem fotos"
+            : item.photoCount === 1
+              ? "1 foto"
+              : `${item.photoCount} fotos`;
+        const albumLabel = item.photoCount > 1 ? "Abrir álbum" : "Ver foto";
+
+        return `
+      <article class="project-card reveal" data-project-index="${index}">
         <div class="project-card-media">
           <div class="portfolio-bg ${item.bgClass}" ${
         item.photoUrl ? `style="background-image:url('${item.photoUrl}')"` : ""
       }></div>
           <div class="portfolio-overlay"></div>
           <div class="portfolio-pattern"></div>
+          <div class="project-card-badge">${photoLabel}</div>
         </div>
         <div class="project-card-body">
-          <div class="portfolio-cat">${item.category}</div>
-          <h2>${item.name}</h2>
-          <p>${item.description}</p>
+          <div class="portfolio-cat">${escapeHtml(item.category)}</div>
+          <h2>${escapeHtml(item.name)}</h2>
+          <p>${escapeHtml(item.description)}</p>
+          <button class="project-album-btn" type="button" data-open-album="${index}" ${
+            item.photoCount ? "" : "disabled"
+          }>${albumLabel}</button>
         </div>
       </article>
-    `
+    `;
+      }
     )
     .join("");
+
+  setupProjectAlbums();
+}
+
+function setupProjectAlbums() {
+  document.querySelectorAll("[data-open-album]").forEach((button) => {
+    button.addEventListener("click", () => {
+      openProjectAlbum(Number(button.dataset.openAlbum), 0);
+    });
+  });
+}
+
+function openProjectAlbum(projectIndex, photoIndex = 0) {
+  const project = projectAlbums[projectIndex];
+  if (!project?.photos?.length) return;
+
+  let currentIndex = Math.min(Math.max(photoIndex, 0), project.photos.length - 1);
+  const overlay = getProjectAlbumOverlay();
+
+  function updateAlbumPhoto() {
+    const img = overlay.querySelector(".album-photo");
+    const counter = overlay.querySelector(".album-counter");
+    const prev = overlay.querySelector("[data-album-prev]");
+    const next = overlay.querySelector("[data-album-next]");
+
+    img.src = project.photos[currentIndex];
+    img.alt = `${project.name} - foto ${currentIndex + 1}`;
+    counter.textContent = `${currentIndex + 1} / ${project.photos.length}`;
+    prev.disabled = currentIndex === 0;
+    next.disabled = currentIndex === project.photos.length - 1;
+  }
+
+  overlay.querySelector(".album-title").textContent = project.name;
+  overlay.querySelector(".album-category").textContent =
+    project.photos.length > 1 ? "Álbum do projeto" : "Foto do projeto";
+
+  overlay.querySelector("[data-album-prev]").onclick = () => {
+    if (currentIndex > 0) {
+      currentIndex -= 1;
+      updateAlbumPhoto();
+    }
+  };
+  overlay.querySelector("[data-album-next]").onclick = () => {
+    if (currentIndex < project.photos.length - 1) {
+      currentIndex += 1;
+      updateAlbumPhoto();
+    }
+  };
+
+  updateAlbumPhoto();
+  overlay.classList.add("open");
+  overlay.setAttribute("aria-hidden", "false");
+}
+
+function closeProjectAlbum() {
+  const overlay = document.querySelector(".project-album-overlay");
+  if (!overlay) return;
+  overlay.classList.remove("open");
+  overlay.setAttribute("aria-hidden", "true");
+}
+
+function getProjectAlbumOverlay() {
+  let overlay = document.querySelector(".project-album-overlay");
+  if (overlay) return overlay;
+
+  overlay = document.createElement("div");
+  overlay.className = "project-album-overlay";
+  overlay.setAttribute("aria-hidden", "true");
+  overlay.innerHTML = `
+    <div class="project-album-modal" role="dialog" aria-modal="true" aria-labelledby="albumTitle">
+      <div class="project-album-head">
+        <div>
+          <span class="album-category"></span>
+          <h2 class="album-title" id="albumTitle"></h2>
+        </div>
+        <button class="modal-close" type="button" data-album-close aria-label="Fechar">&times;</button>
+      </div>
+      <div class="album-frame">
+        <img class="album-photo" src="" alt="">
+      </div>
+      <div class="album-controls">
+        <button type="button" data-album-prev>Anterior</button>
+        <span class="album-counter"></span>
+        <button type="button" data-album-next>Próxima</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  overlay.addEventListener("click", (event) => {
+    if (event.target === overlay || event.target.closest("[data-album-close]")) {
+      closeProjectAlbum();
+    }
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") closeProjectAlbum();
+  });
+
+  return overlay;
 }
 
 // ===============================
