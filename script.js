@@ -53,9 +53,6 @@ async function fetchTestimonialsData() {
       .select(`
         rating,
         comment,
-        customers (
-          name
-        ),
         projects (
           name
         )
@@ -65,7 +62,7 @@ async function fetchTestimonialsData() {
     if (error) throw error;
 
     return data.map((avaliacao) => {
-      const nome = avaliacao.customers?.name || "Cliente";
+      const nome = "Cliente";
 
       const iniciais = nome
         .split(" ")

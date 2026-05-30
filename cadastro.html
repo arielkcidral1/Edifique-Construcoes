@@ -93,7 +93,7 @@
   <script>
     const SUPABASE_URL = "https://uimjqymytxqvvwrojcgg.supabase.co";
     const SUPABASE_ANON_KEY = "sb_publishable_k-VnTcGnw9yTPXteKozg3w_z4fi_uf8";
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     function showMessage(msg, isError = false) {
       const msgBox = document.getElementById('messageBox');
@@ -115,7 +115,7 @@
         return;
       }
 
-      const { data, error } = await supabase.auth.signUp({
+      const { data, error } = await supabaseClient.auth.signUp({
         email: email,
         password: password,
         options: {
@@ -128,7 +128,7 @@
       } else {
         showMessage("Cadastro concluído! Redirecionando...");
         // Tenta fazer o login automático de forma segura em segundo plano
-        supabase.auth.signInWithPassword({ email, password }).finally(() => {
+        supabaseClient.auth.signInWithPassword({ email, password }).finally(() => {
           // Força o redirecionamento imediato para o site, não importa o que aconteça
           window.location.replace('index.html');
         });

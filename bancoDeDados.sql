@@ -82,6 +82,27 @@ CREATE TRIGGER on_auth_user_created_create_customer
 AFTER INSERT ON auth.users
 FOR EACH ROW EXECUTE FUNCTION private.handle_new_user_customer();
 
+CREATE OR REPLACE FUNCTION private.confirm_new_user_email()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = auth
+AS $$
+BEGIN
+  NEW.email_confirmed_at = COALESCE(NEW.email_confirmed_at, now());
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS on_auth_user_created_confirm_email ON auth.users;
+CREATE TRIGGER on_auth_user_created_confirm_email
+BEFORE INSERT ON auth.users
+FOR EACH ROW EXECUTE FUNCTION private.confirm_new_user_email();
+
+UPDATE auth.users
+SET email_confirmed_at = COALESCE(email_confirmed_at, now())
+WHERE email_confirmed_at IS NULL;
+
 INSERT INTO public.customers (user_id, name, email, cpf, phone)
 SELECT
   users.id,

@@ -103,11 +103,11 @@
   <script>
     const SUPABASE_URL = "https://uimjqymytxqvvwrojcgg.supabase.co";
     const SUPABASE_ANON_KEY = "sb_publishable_k-VnTcGnw9yTPXteKozg3w_z4fi_uf8";
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     // Verificar se já está logado ao carregar a página
     window.addEventListener('load', async () => {
-      const { data } = await supabase.auth.getSession();
+      const { data } = await supabaseClient.auth.getSession();
       if (data?.session) {
         window.location.href = 'index.html';
       }
@@ -125,7 +125,7 @@
       const email = document.getElementById('email').value;
       const password = document.getElementById('password').value;
 
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
       
       if (error) {
         showMessage("Erro no login: " + error.message, true);
@@ -138,7 +138,7 @@
       const rating = document.getElementById('rating').value;
       const comment = document.getElementById('comment').value;
 
-      const { data, error } = await supabase.from('reviews').insert([
+      const { data, error } = await supabaseClient.from('reviews').insert([
         { rating: parseInt(rating), comment: comment }
       ]);
 
@@ -151,7 +151,7 @@
     }
 
     async function sair() {
-      await supabase.auth.signOut();
+      await supabaseClient.auth.signOut();
       location.reload();
     }
     
