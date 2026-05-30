@@ -125,7 +125,7 @@
 
         <h3>3. Gerenciar Álbuns de Fotos</h3>
         <div class="card">
-          <p class="muted">Apague uma foto específica ou remova todas as fotos de um projeto. O projeto continua cadastrado.</p>
+          <p class="muted">Apague uma foto específica ou remova a obra inteira junto com todas as fotos do álbum.</p>
           <div id="albumsList">Carregando álbuns...</div>
         </div>
       </div>
@@ -319,7 +319,7 @@
                 <span>${photos.length === 1 ? '1 foto' : `${photos.length} fotos`}</span>
               </div>
               <div class="inline-actions">
-                <button class="danger" onclick="deletarAlbumProjeto(${project.id})" ${photos.length ? '' : 'disabled'}>Apagar álbum</button>
+                <button class="danger" onclick="deletarAlbumProjeto(${project.id})">Apagar obra</button>
               </div>
             </div>
             <div class="album-photos">${photosHtml}</div>
@@ -344,7 +344,7 @@
     }
 
     async function deletarAlbumProjeto(projectId) {
-      if (!confirm("Tem certeza que deseja apagar TODAS as fotos deste projeto? O projeto continuará cadastrado.")) return;
+      if (!confirm("Tem certeza que deseja apagar esta obra/projeto e TODAS as fotos do álbum? Esta ação não pode ser desfeita.")) return;
 
       const { data: photos, error: fetchError } = await supabaseClient
         .from('project_photos')
@@ -357,16 +357,17 @@
       }
 
       const { error: deleteError } = await supabaseClient
-        .from('project_photos')
+        .from('projects')
         .delete()
-        .eq('project_id', projectId);
+        .eq('id', projectId);
 
       if (deleteError) {
-        alert("Erro ao apagar álbum: " + deleteError.message);
+        alert("Erro ao apagar obra: " + deleteError.message);
         return;
       }
 
       await removerArquivosStorage((photos || []).map(photo => photo.photo_url));
+      carregarProjetosDropdown();
       carregarAlbuns();
     }
 
