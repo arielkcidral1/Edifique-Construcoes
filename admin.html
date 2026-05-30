@@ -106,11 +106,12 @@
     window.addEventListener('load', async () => {
       const { data } = await supabaseClient.auth.getSession();
       if (!data?.session) {
-        window.location.href = 'funcionario.html'; // Se não estiver logado, manda pro login
+        window.location.href = 'admin-login.html'; // Se nao estiver logado, manda pro login admin
       } else {
         const email = data.session.user.email;
         if (email !== 'admin@edifique.com') {
-          window.location.href = 'funcionario.html'; // Se não for admin, manda de volta
+          await supabaseClient.auth.signOut();
+          window.location.href = 'admin-login.html'; // Se nao for admin, manda de volta
         } else {
           document.getElementById('dashboardView').classList.remove('hidden');
           carregarAvaliacoes();
