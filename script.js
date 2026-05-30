@@ -3,10 +3,12 @@ const SUPABASE_URL = "https://uimjqymytxqvvwrojcgg.supabase.co";
 const SUPABASE_ANON_KEY =
   "sb_publishable_k-VnTcGnw9yTPXteKozg3w_z4fi_uf8";
 
-const db = supabase.createClient(
-  SUPABASE_URL,
-  SUPABASE_ANON_KEY
-);
+const db = window.supabase
+  ? window.supabase.createClient(
+      SUPABASE_URL,
+      SUPABASE_ANON_KEY
+    )
+  : null;
 
 let clienteLogado = null;
 
@@ -131,6 +133,12 @@ async function resolveEmailFromCredential(credential) {
 }
 
 async function loadClientProfile() {
+  if (!db) {
+    clienteLogado = null;
+    updateClientSessionUI();
+    return;
+  }
+
   const { data: sessionData } = await db.auth.getSession();
   const user = sessionData?.session?.user;
 
@@ -157,6 +165,8 @@ async function loadClientProfile() {
 // BUSCAR PROJETOS
 // ===============================
 async function fetchPortfolioData() {
+  if (!db) return [];
+
   try {
     const { data, error } = await db
       .from("projects")
@@ -173,8 +183,11 @@ async function fetchPortfolioData() {
     if (error) throw error;
 
     return data.map((projeto, index) => ({
+      id: projeto.id,
       category: projeto.description || "Projeto",
+      description: projeto.description || "Projeto Edifique",
       name: projeto.name,
+      photoUrl: projeto.project_photos?.[0]?.photo_url || "",
       bgClass: !projeto.project_photos?.length
         ? `p${(index % 5) + 1}`
         : "",
@@ -192,6 +205,8 @@ async function fetchPortfolioData() {
 // BUSCAR AVALIAÇÕES
 // ===============================
 async function fetchTestimonialsData() {
+  if (!db) return [];
+
   try {
     const { data, error } = await db
       .from("reviews")
@@ -255,6 +270,42 @@ function renderPortfolio(data) {
           </div>
         </div>
       </div>
+    `
+    )
+    .join("");
+}
+
+function renderProjectsPage(data) {
+  const grid = document.querySelector(".projects-page-grid");
+  const empty = document.querySelector(".projects-empty");
+
+  if (!grid) return;
+
+  if (!data.length) {
+    grid.innerHTML = "";
+    if (empty) empty.hidden = false;
+    return;
+  }
+
+  if (empty) empty.hidden = true;
+
+  grid.innerHTML = data
+    .map(
+      (item) => `
+      <article class="project-card reveal">
+        <div class="project-card-media">
+          <div class="portfolio-bg ${item.bgClass}" ${
+        item.photoUrl ? `style="background-image:url('${item.photoUrl}')"` : ""
+      }></div>
+          <div class="portfolio-overlay"></div>
+          <div class="portfolio-pattern"></div>
+        </div>
+        <div class="project-card-body">
+          <div class="portfolio-cat">${item.category}</div>
+          <h2>${item.name}</h2>
+          <p>${item.description}</p>
+        </div>
+      </article>
     `
     )
     .join("");
@@ -373,9 +424,8 @@ const statsIO =
     }
   );
 
-statsIO.observe(
-  document.querySelector(".stats-strip")
-);
+const statsStrip = document.querySelector(".stats-strip");
+if (statsStrip) statsIO.observe(statsStrip);
 
 // ===============================
 // NAV AO ROLAR
@@ -388,8 +438,8 @@ window.addEventListener(
   () => {
     nav.style.background =
       window.scrollY > 60
-        ? "rgba(20,18,16,.97)"
-        : "linear-gradient(to bottom, rgba(20,18,16,.92) 0%, transparent 100%)";
+        ? "rgba(7,16,20,.97)"
+        : "linear-gradient(to bottom, rgba(7,16,20,.92) 0%, transparent 100%)";
   }
 );
 
@@ -403,10 +453,14 @@ async function init() {
     const portfolioData =
       await fetchPortfolioData();
 
-    const testimonialsData =
-      await fetchTestimonialsData();
+    renderPortfolio(portfolioData.slice(0, 5));
 
-    renderPortfolio(portfolioData);
+    renderProjectsPage(portfolioData);
+
+    const testimonialsData =
+      document.querySelector(".testimonials-grid")
+        ? await fetchTestimonialsData()
+        : [];
 
     renderTestimonials(testimonialsData);
 
@@ -611,6 +665,8 @@ document.getElementById("reviewForm")?.addEventListener("submit", async function
   }
 });
 
-db.auth.onAuthStateChange(() => {
-  loadClientProfile();
-});
+if (db) {
+  db.auth.onAuthStateChange(() => {
+    loadClientProfile();
+  });
+}

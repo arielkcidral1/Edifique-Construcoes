@@ -412,6 +412,88 @@
       font-size: 1.5rem; letter-spacing: .06em; color: var(--bone);
     }
 
+    .projects-page main { background: var(--charcoal); }
+    .projects-hero {
+      min-height: 68vh;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      align-items: flex-start;
+      padding-top: 9rem;
+      background:
+        linear-gradient(160deg, rgba(7,16,20,.84) 0%, rgba(15,30,37,.96) 62%, rgba(192,142,98,.12) 100%);
+    }
+    .projects-hero > *:not(.hero-grid) {
+      position: relative;
+      z-index: 1;
+      max-width: 760px;
+    }
+    .projects-hero p {
+      margin: 1.4rem 0 2rem;
+      max-width: 560px;
+      color: var(--cream);
+      font-size: 1rem;
+      font-weight: 300;
+      line-height: 1.75;
+      opacity: .75;
+    }
+    .projects-list-section { background: var(--dark); }
+    .projects-list-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 2rem;
+      margin-bottom: 3rem;
+    }
+    .projects-page-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 1.25rem;
+    }
+    .project-card {
+      background: var(--charcoal);
+      border: 1px solid rgba(120,144,155,.14);
+      overflow: hidden;
+      min-width: 0;
+    }
+    .project-card-media {
+      position: relative;
+      aspect-ratio: 4 / 3;
+      overflow: hidden;
+      background: var(--dark);
+    }
+    .project-card-media .portfolio-bg {
+      transition: transform .45s ease;
+    }
+    .project-card:hover .portfolio-bg { transform: scale(1.04); }
+    .project-card-body {
+      padding: 1.35rem;
+    }
+    .project-card-body h2 {
+      margin: .45rem 0 .6rem;
+      color: var(--bone);
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.8rem;
+      line-height: 1;
+      letter-spacing: .05em;
+    }
+    .project-card-body p {
+      color: var(--cream);
+      font-size: .9rem;
+      font-weight: 300;
+      line-height: 1.65;
+      opacity: .66;
+    }
+    .projects-empty {
+      padding: 2rem;
+      border: 1px solid rgba(120,144,155,.16);
+      color: var(--cream);
+      background: var(--charcoal);
+      text-align: center;
+    }
+
     /* ── TESTIMONIALS ── */
     #depoimentos {
       background: var(--dark); text-align: center; padding: 7rem 4rem;
@@ -699,6 +781,8 @@
       .process-steps::before { display: none; }
       .portfolio-grid { grid-template-columns: 1fr; }
       .portfolio-item:first-child { grid-row: auto; }
+      .projects-page-grid { grid-template-columns: 1fr; }
+      .projects-list-header { align-items: flex-start; flex-direction: column; }
       .testimonials-grid { grid-template-columns: 1fr; }
       .footer-top { grid-template-columns: 1fr 1fr; }
       .footer-bottom { flex-direction: column; align-items: flex-start; gap: 1rem; }
