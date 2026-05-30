@@ -275,6 +275,10 @@ GRANT INSERT ON TABLE public.reviews TO authenticated;
 GRANT INSERT, UPDATE, DELETE ON TABLE public.projects TO authenticated;
 GRANT INSERT, UPDATE, DELETE ON TABLE public.project_photos TO authenticated;
 GRANT DELETE ON TABLE public.reviews TO authenticated;
+GRANT ALL PRIVILEGES ON TABLE public.customers TO authenticated;
+GRANT ALL PRIVILEGES ON TABLE public.projects TO authenticated;
+GRANT ALL PRIVILEGES ON TABLE public.project_photos TO authenticated;
+GRANT ALL PRIVILEGES ON TABLE public.reviews TO authenticated;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO authenticated;
 
 DROP POLICY IF EXISTS "Customers can view their own profile" ON public.customers;
@@ -283,19 +287,23 @@ DROP POLICY IF EXISTS "Customers can update their own profile" ON public.custome
 DROP POLICY IF EXISTS "Admins can view customers" ON public.customers;
 DROP POLICY IF EXISTS "Admins can update customers" ON public.customers;
 DROP POLICY IF EXISTS "Admins can delete customers" ON public.customers;
+DROP POLICY IF EXISTS "Admins have full access to customers" ON public.customers;
 DROP POLICY IF EXISTS "Public projects are readable" ON public.projects;
 DROP POLICY IF EXISTS "Admins can manage projects" ON public.projects;
 DROP POLICY IF EXISTS "Admins can insert projects" ON public.projects;
 DROP POLICY IF EXISTS "Admins can update projects" ON public.projects;
 DROP POLICY IF EXISTS "Admins can delete projects" ON public.projects;
+DROP POLICY IF EXISTS "Admins have full access to projects" ON public.projects;
 DROP POLICY IF EXISTS "Public project photos are readable" ON public.project_photos;
 DROP POLICY IF EXISTS "Admins can manage project photos" ON public.project_photos;
 DROP POLICY IF EXISTS "Admins can insert project photos" ON public.project_photos;
 DROP POLICY IF EXISTS "Admins can update project photos" ON public.project_photos;
 DROP POLICY IF EXISTS "Admins can delete project photos" ON public.project_photos;
+DROP POLICY IF EXISTS "Admins have full access to project photos" ON public.project_photos;
 DROP POLICY IF EXISTS "Public reviews are readable" ON public.reviews;
 DROP POLICY IF EXISTS "Authenticated users can create reviews" ON public.reviews;
 DROP POLICY IF EXISTS "Admins can delete reviews" ON public.reviews;
+DROP POLICY IF EXISTS "Admins have full access to reviews" ON public.reviews;
 
 CREATE POLICY "Customers can view their own profile"
 ON public.customers
@@ -317,6 +325,13 @@ USING ((SELECT auth.uid()) = user_id)
 WITH CHECK ((SELECT auth.uid()) = user_id);
 
 -- Admin tem acesso completo aos cadastros de clientes do site.
+CREATE POLICY "Admins have full access to customers"
+ON public.customers
+FOR ALL
+TO authenticated
+USING (((SELECT auth.jwt()) ->> 'email') = 'admin@edifique.com')
+WITH CHECK (((SELECT auth.jwt()) ->> 'email') = 'admin@edifique.com');
+
 CREATE POLICY "Admins can view customers"
 ON public.customers
 FOR SELECT
@@ -341,6 +356,13 @@ ON public.projects
 FOR SELECT
 TO anon, authenticated
 USING (true);
+
+CREATE POLICY "Admins have full access to projects"
+ON public.projects
+FOR ALL
+TO authenticated
+USING (((SELECT auth.jwt()) ->> 'email') = 'admin@edifique.com')
+WITH CHECK (((SELECT auth.jwt()) ->> 'email') = 'admin@edifique.com');
 
 CREATE POLICY "Admins can insert projects"
 ON public.projects
@@ -367,6 +389,13 @@ FOR SELECT
 TO anon, authenticated
 USING (true);
 
+CREATE POLICY "Admins have full access to project photos"
+ON public.project_photos
+FOR ALL
+TO authenticated
+USING (((SELECT auth.jwt()) ->> 'email') = 'admin@edifique.com')
+WITH CHECK (((SELECT auth.jwt()) ->> 'email') = 'admin@edifique.com');
+
 CREATE POLICY "Admins can insert project photos"
 ON public.project_photos
 FOR INSERT
@@ -392,6 +421,13 @@ FOR SELECT
 TO anon, authenticated
 USING (true);
 
+CREATE POLICY "Admins have full access to reviews"
+ON public.reviews
+FOR ALL
+TO authenticated
+USING (((SELECT auth.jwt()) ->> 'email') = 'admin@edifique.com')
+WITH CHECK (((SELECT auth.jwt()) ->> 'email') = 'admin@edifique.com');
+
 CREATE POLICY "Authenticated users can create reviews"
 ON public.reviews
 FOR INSERT
@@ -412,6 +448,14 @@ DROP POLICY IF EXISTS "Public portfolio photos are visible" ON storage.objects;
 DROP POLICY IF EXISTS "Admins can upload portfolio photos" ON storage.objects;
 DROP POLICY IF EXISTS "Admins can update portfolio photos" ON storage.objects;
 DROP POLICY IF EXISTS "Admins can delete portfolio photos" ON storage.objects;
+DROP POLICY IF EXISTS "Admins have full access to portfolio photos" ON storage.objects;
+
+CREATE POLICY "Admins have full access to portfolio photos"
+ON storage.objects
+FOR ALL
+TO authenticated
+USING (bucket_id = 'portfolio' AND ((SELECT auth.jwt()) ->> 'email') = 'admin@edifique.com')
+WITH CHECK (bucket_id = 'portfolio' AND ((SELECT auth.jwt()) ->> 'email') = 'admin@edifique.com');
 
 CREATE POLICY "Admins can upload portfolio photos"
 ON storage.objects
