@@ -978,6 +978,7 @@
 /* ── PAINEL CONTAINER ── */
 .account-panel {
   display: flex;
+  flex-direction: row-reverse;
   width: min(960px, 100%);
   height: min(680px, calc(100vh - 2rem));
   background: #071014;
@@ -995,7 +996,8 @@
   min-width: 230px;
   flex-shrink: 0;
   background: #0b1a22;
-  border-right: 1px solid rgba(120,144,155,.14);
+  border-right: 0;
+  border-left: 1px solid rgba(120,144,155,.14);
   display: flex;
   flex-direction: column;
   padding: 1.25rem 1rem;
@@ -1464,7 +1466,7 @@
   .account-sidebar {
     width: 100%;
     min-width: 100%;
-    border-right: 0;
+    border-left: 0;
     border-bottom: 1px solid rgba(120,144,155,.14);
     padding: .9rem;
     flex-shrink: 0;
