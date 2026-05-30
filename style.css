@@ -447,6 +447,20 @@
       gap: 2rem;
       margin-bottom: 3rem;
     }
+    .projects-count {
+      min-height: 42px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: .65rem 1rem;
+      border: 1px solid rgba(214, 200, 173, .28);
+      color: var(--gold);
+      font-size: .72rem;
+      font-weight: 700;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
     .projects-page-grid {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -486,6 +500,7 @@
       line-height: 1.65;
       opacity: .66;
     }
+    .projects-loading,
     .projects-empty {
       padding: 2rem;
       border: 1px solid rgba(120,144,155,.16);
@@ -493,6 +508,8 @@
       background: var(--charcoal);
       text-align: center;
     }
+    .projects-loading[hidden],
+    .projects-empty[hidden] { display: none; }
 
     /* ── TESTIMONIALS ── */
     #depoimentos {

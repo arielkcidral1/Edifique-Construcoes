@@ -278,8 +278,18 @@ function renderPortfolio(data) {
 function renderProjectsPage(data) {
   const grid = document.querySelector(".projects-page-grid");
   const empty = document.querySelector(".projects-empty");
+  const loading = document.querySelector("[data-projects-loading]");
+  const count = document.querySelector("[data-projects-count]");
 
   if (!grid) return;
+
+  if (loading) loading.hidden = true;
+  if (count) {
+    count.textContent =
+      data.length === 1
+        ? "1 projeto cadastrado"
+        : `${data.length} projetos cadastrados`;
+  }
 
   if (!data.length) {
     grid.innerHTML = "";
