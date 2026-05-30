@@ -153,7 +153,7 @@ REVOKE ALL ON TABLE public.reviews FROM anon, authenticated;
 GRANT SELECT ON TABLE public.projects TO anon, authenticated;
 GRANT SELECT ON TABLE public.project_photos TO anon, authenticated;
 GRANT SELECT ON TABLE public.reviews TO anon, authenticated;
-GRANT SELECT ON TABLE public.customers TO authenticated;
+GRANT SELECT, UPDATE, DELETE ON TABLE public.customers TO authenticated;
 GRANT INSERT ON TABLE public.reviews TO authenticated;
 GRANT INSERT, UPDATE, DELETE ON TABLE public.projects TO authenticated;
 GRANT INSERT, UPDATE, DELETE ON TABLE public.project_photos TO authenticated;
@@ -161,6 +161,9 @@ GRANT DELETE ON TABLE public.reviews TO authenticated;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO authenticated;
 
 DROP POLICY IF EXISTS "Customers can view their own profile" ON public.customers;
+DROP POLICY IF EXISTS "Admins can view customers" ON public.customers;
+DROP POLICY IF EXISTS "Admins can update customers" ON public.customers;
+DROP POLICY IF EXISTS "Admins can delete customers" ON public.customers;
 DROP POLICY IF EXISTS "Public projects are readable" ON public.projects;
 DROP POLICY IF EXISTS "Admins can manage projects" ON public.projects;
 DROP POLICY IF EXISTS "Admins can insert projects" ON public.projects;
@@ -180,6 +183,25 @@ ON public.customers
 FOR SELECT
 TO authenticated
 USING ((SELECT auth.uid()) = user_id);
+
+CREATE POLICY "Admins can view customers"
+ON public.customers
+FOR SELECT
+TO authenticated
+USING (((SELECT auth.jwt()) ->> 'email') = 'admin@edifique.com');
+
+CREATE POLICY "Admins can update customers"
+ON public.customers
+FOR UPDATE
+TO authenticated
+USING (((SELECT auth.jwt()) ->> 'email') = 'admin@edifique.com')
+WITH CHECK (((SELECT auth.jwt()) ->> 'email') = 'admin@edifique.com');
+
+CREATE POLICY "Admins can delete customers"
+ON public.customers
+FOR DELETE
+TO authenticated
+USING (((SELECT auth.jwt()) ->> 'email') = 'admin@edifique.com');
 
 CREATE POLICY "Public projects are readable"
 ON public.projects

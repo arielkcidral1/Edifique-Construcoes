@@ -25,8 +25,11 @@
       padding: 0.8rem 1.5rem; background-color: #d6c8ad; color: #071014; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;
     }
     button:hover { background-color: #c08e62; }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    button:disabled:hover { background-color: #d6c8ad; }
     button.danger { background-color: #dc3545; color: white; }
     button.danger:hover { background-color: #c82333; }
+    button.danger:disabled:hover { background-color: #dc3545; }
     .hidden { display: none !important; }
     
     /* Dashboard Styles */
@@ -36,6 +39,33 @@
     .sidebar a:hover, .sidebar a.active { background: #d6c8ad; color: #071014; }
     .content { flex: 1; padding: 2rem; }
     .card { background: #0f1e25; padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem; }
+    .muted { color: #9aa7aa; font-size: 0.9rem; line-height: 1.5; }
+    .album-project { border: 1px solid #203040; border-radius: 8px; margin-bottom: 1rem; overflow: hidden; }
+    .album-project-head {
+      display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+      padding: 1rem; background: #071014;
+    }
+    .album-project-head h4 { margin: 0 0 .25rem; color: #e7ecec; }
+    .album-project-head span { color: #d6c8ad; font-size: .82rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
+    .album-photos { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: .85rem; padding: 1rem; }
+    .album-photo-card { background: #071014; border: 1px solid #203040; border-radius: 6px; overflow: hidden; }
+    .album-photo-card img { width: 100%; aspect-ratio: 4/3; object-fit: cover; display: block; }
+    .album-photo-card button { width: 100%; border-radius: 0; padding: .7rem .85rem; }
+    .inline-actions { display: flex; gap: .6rem; flex-wrap: wrap; }
+    .client-item {
+      border: 1px solid #203040;
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      background: #071014;
+    }
+    .client-item-head {
+      display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem;
+      margin-bottom: 1rem;
+    }
+    .client-item h4 { margin: 0 0 .35rem; color: #e7ecec; }
+    .client-meta { color: #9aa7aa; font-size: .9rem; line-height: 1.55; }
+    .client-edit-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .85rem; }
     
     /* Lista de avaliações */
     .review-item { border-bottom: 1px solid #333; padding: 1rem 0; display: flex; justify-content: space-between; align-items: center;}
@@ -49,7 +79,8 @@
     <div class="sidebar">
       <h2>Painel Edifique</h2>
       <a class="active" onclick="showTab('tab-avaliacoes')">Gerenciar Avaliações</a>
-      <a onclick="showTab('tab-obras')">Adicionar Obras/Fotos</a>
+      <a onclick="showTab('tab-obras')">Obras, Fotos e Álbuns</a>
+      <a onclick="showTab('tab-clientes')">Clientes/Cadastros</a>
       <a onclick="sairAdmin()" style="margin-top: 2rem; background: #333;">Sair</a>
     </div>
     
@@ -91,6 +122,21 @@
           </div>
           <button onclick="fazerUploadFoto()">Fazer Upload</button>
         </div>
+
+        <h3>3. Gerenciar Álbuns de Fotos</h3>
+        <div class="card">
+          <p class="muted">Apague uma foto específica ou remova todas as fotos de um projeto. O projeto continua cadastrado.</p>
+          <div id="albumsList">Carregando álbuns...</div>
+        </div>
+      </div>
+
+      <!-- TAB CLIENTES -->
+      <div id="tab-clientes" class="tab-content hidden">
+        <h3>Clientes Cadastrados</h3>
+        <div class="card">
+          <p class="muted">Gerencie os dados de contato cadastrados pelos clientes no site.</p>
+          <div id="clientesList">Carregando clientes...</div>
+        </div>
       </div>
     </div>
   </div>
@@ -116,6 +162,8 @@
           document.getElementById('dashboardView').classList.remove('hidden');
           carregarAvaliacoes();
           carregarProjetosDropdown();
+          carregarAlbuns();
+          carregarClientes();
         }
       }
     });
@@ -124,6 +172,8 @@
     function showTab(tabId) {
       document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
       document.getElementById(tabId).classList.remove('hidden');
+      if (tabId === 'tab-obras') carregarAlbuns();
+      if (tabId === 'tab-clientes') carregarClientes();
     }
 
     async function sairAdmin() {
@@ -161,6 +211,19 @@
     // ----------------------------
     // GERENCIAMENTO DE OBRAS/FOTOS
     // ----------------------------
+    function escapeHtml(value) {
+      return String(value || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function escapeAttr(value) {
+      return escapeHtml(value).replace(/`/g, "&#096;");
+    }
+
     async function criarProjeto() {
       const name = document.getElementById('projName').value;
       const desc = document.getElementById('projDesc').value;
@@ -175,6 +238,7 @@
         document.getElementById('projName').value = "";
         document.getElementById('projDesc').value = "";
         carregarProjetosDropdown(); // Atualiza a lista de seleção
+        carregarAlbuns();
       }
     }
 
@@ -185,6 +249,228 @@
         select.innerHTML = '<option value="">Selecione uma obra...</option>' + 
           data.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
       }
+    }
+
+    function getPortfolioPathFromUrl(photoUrl) {
+      try {
+        const url = new URL(photoUrl);
+        const marker = "/storage/v1/object/public/portfolio/";
+        const markerIndex = url.pathname.indexOf(marker);
+        if (markerIndex === -1) return "";
+        return decodeURIComponent(url.pathname.slice(markerIndex + marker.length));
+      } catch {
+        return "";
+      }
+    }
+
+    async function removerArquivosStorage(photoUrls) {
+      const paths = photoUrls.map(getPortfolioPathFromUrl).filter(Boolean);
+      if (!paths.length) return;
+      const { error } = await supabaseClient.storage.from('portfolio').remove(paths);
+      if (error) console.warn("Não foi possível remover arquivo(s) do storage:", error.message);
+    }
+
+    async function carregarAlbuns() {
+      const container = document.getElementById('albumsList');
+      if (!container) return;
+
+      container.innerHTML = "Carregando álbuns...";
+
+      const { data, error } = await supabaseClient
+        .from('projects')
+        .select(`
+          id,
+          name,
+          description,
+          project_photos (
+            id,
+            photo_url,
+            uploaded_at
+          )
+        `)
+        .order('id', { ascending: false });
+
+      if (error) {
+        container.innerHTML = "Erro ao carregar álbuns.";
+        return;
+      }
+
+      if (!data.length) {
+        container.innerHTML = "Nenhum projeto cadastrado.";
+        return;
+      }
+
+      container.innerHTML = data.map((project) => {
+        const photos = project.project_photos || [];
+        const photosHtml = photos.length
+          ? photos.map((photo) => `
+            <div class="album-photo-card">
+              <img src="${photo.photo_url}" alt="Foto de ${project.name}">
+              <button class="danger" onclick="deletarFotoProjeto(${photo.id}, '${encodeURIComponent(photo.photo_url)}')">Apagar foto</button>
+            </div>
+          `).join('')
+          : '<p class="muted">Este projeto ainda não tem fotos.</p>';
+
+        return `
+          <div class="album-project">
+            <div class="album-project-head">
+              <div>
+                <h4>${project.name}</h4>
+                <span>${photos.length === 1 ? '1 foto' : `${photos.length} fotos`}</span>
+              </div>
+              <div class="inline-actions">
+                <button class="danger" onclick="deletarAlbumProjeto(${project.id})" ${photos.length ? '' : 'disabled'}>Apagar álbum</button>
+              </div>
+            </div>
+            <div class="album-photos">${photosHtml}</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function deletarFotoProjeto(photoId, encodedPhotoUrl) {
+      if (!confirm("Tem certeza que deseja apagar esta foto do álbum?")) return;
+
+      const photoUrl = decodeURIComponent(encodedPhotoUrl);
+      const { error } = await supabaseClient.from('project_photos').delete().eq('id', photoId);
+
+      if (error) {
+        alert("Erro ao apagar foto: " + error.message);
+        return;
+      }
+
+      await removerArquivosStorage([photoUrl]);
+      carregarAlbuns();
+    }
+
+    async function deletarAlbumProjeto(projectId) {
+      if (!confirm("Tem certeza que deseja apagar TODAS as fotos deste projeto? O projeto continuará cadastrado.")) return;
+
+      const { data: photos, error: fetchError } = await supabaseClient
+        .from('project_photos')
+        .select('photo_url')
+        .eq('project_id', projectId);
+
+      if (fetchError) {
+        alert("Erro ao buscar fotos do álbum: " + fetchError.message);
+        return;
+      }
+
+      const { error: deleteError } = await supabaseClient
+        .from('project_photos')
+        .delete()
+        .eq('project_id', projectId);
+
+      if (deleteError) {
+        alert("Erro ao apagar álbum: " + deleteError.message);
+        return;
+      }
+
+      await removerArquivosStorage((photos || []).map(photo => photo.photo_url));
+      carregarAlbuns();
+    }
+
+    // ----------------------------
+    // GERENCIAMENTO DE CLIENTES
+    // ----------------------------
+    async function carregarClientes() {
+      const container = document.getElementById('clientesList');
+      if (!container) return;
+
+      container.innerHTML = "Carregando clientes...";
+
+      const { data, error } = await supabaseClient
+        .from('customers')
+        .select('id, name, email, phone, cpf, created_at')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        container.innerHTML = "Erro ao carregar clientes. Verifique as permissões da tabela customers.";
+        return;
+      }
+
+      if (!data.length) {
+        container.innerHTML = "Nenhum cliente cadastrado.";
+        return;
+      }
+
+      container.innerHTML = data.map((cliente) => `
+        <div class="client-item" id="cliente-${cliente.id}">
+          <div class="client-item-head">
+            <div>
+              <h4>${escapeHtml(cliente.name)}</h4>
+              <div class="client-meta">
+                <div>E-mail: ${escapeHtml(cliente.email)}</div>
+                <div>CPF: ${escapeHtml(cliente.cpf || "Não informado")}</div>
+                <div>WhatsApp: ${escapeHtml(cliente.phone || "Não informado")}</div>
+              </div>
+            </div>
+            <button class="danger" onclick="deletarCliente(${cliente.id})">Apagar cadastro</button>
+          </div>
+          <div class="client-edit-grid">
+            <div class="form-group">
+              <label>Nome</label>
+              <input type="text" id="cliente-nome-${cliente.id}" value="${escapeAttr(cliente.name)}">
+            </div>
+            <div class="form-group">
+              <label>E-mail</label>
+              <input type="email" id="cliente-email-${cliente.id}" value="${escapeAttr(cliente.email)}">
+            </div>
+            <div class="form-group">
+              <label>CPF</label>
+              <input type="text" id="cliente-cpf-${cliente.id}" value="${escapeAttr(cliente.cpf || "")}">
+            </div>
+            <div class="form-group">
+              <label>WhatsApp</label>
+              <input type="tel" id="cliente-phone-${cliente.id}" value="${escapeAttr(cliente.phone || "")}">
+            </div>
+          </div>
+          <button onclick="salvarCliente(${cliente.id})">Salvar alterações</button>
+        </div>
+      `).join('');
+    }
+
+    async function salvarCliente(id) {
+      const payload = {
+        name: document.getElementById(`cliente-nome-${id}`).value.trim(),
+        email: document.getElementById(`cliente-email-${id}`).value.trim(),
+        cpf: document.getElementById(`cliente-cpf-${id}`).value.trim(),
+        phone: document.getElementById(`cliente-phone-${id}`).value.trim()
+      };
+
+      if (!payload.name || !payload.email) {
+        alert("Nome e e-mail são obrigatórios.");
+        return;
+      }
+
+      const { error } = await supabaseClient
+        .from('customers')
+        .update(payload)
+        .eq('id', id);
+
+      if (error) {
+        alert("Erro ao salvar cliente: " + error.message);
+        return;
+      }
+
+      alert("Cliente atualizado com sucesso!");
+      carregarClientes();
+    }
+
+    async function deletarCliente(id) {
+      if (!confirm("Tem certeza que deseja apagar este cadastro de cliente?")) return;
+
+      const { error } = await supabaseClient
+        .from('customers')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        alert("Erro ao apagar cliente: " + error.message);
+        return;
+      }
+
+      carregarClientes();
     }
 
     async function fazerUploadFoto() {
@@ -217,6 +503,7 @@
       else {
         alert("Foto adicionada com sucesso!");
         fileInput.value = "";
+        carregarAlbuns();
       }
     }
   </script>
