@@ -379,10 +379,7 @@
 
       container.innerHTML = "Carregando clientes...";
 
-      const { data, error } = await supabaseClient
-        .from('customers')
-        .select('id, name, email, phone, cpf, created_at')
-        .order('created_at', { ascending: false });
+      const { data, error } = await supabaseClient.rpc('admin_list_customers');
 
       if (error) {
         container.innerHTML = "Erro ao carregar clientes. Verifique as permissões da tabela customers.";
@@ -443,10 +440,13 @@
         return;
       }
 
-      const { error } = await supabaseClient
-        .from('customers')
-        .update(payload)
-        .eq('id', id);
+      const { error } = await supabaseClient.rpc('admin_update_customer', {
+        customer_id_input: id,
+        name_input: payload.name,
+        email_input: payload.email,
+        cpf_input: payload.cpf,
+        phone_input: payload.phone
+      });
 
       if (error) {
         alert("Erro ao salvar cliente: " + error.message);
@@ -460,10 +460,9 @@
     async function deletarCliente(id) {
       if (!confirm("Tem certeza que deseja apagar este cadastro de cliente?")) return;
 
-      const { error } = await supabaseClient
-        .from('customers')
-        .delete()
-        .eq('id', id);
+      const { error } = await supabaseClient.rpc('admin_delete_customer', {
+        customer_id_input: id
+      });
 
       if (error) {
         alert("Erro ao apagar cliente: " + error.message);

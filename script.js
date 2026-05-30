@@ -171,6 +171,19 @@ async function loadClientProfile() {
   updateClientSessionUI();
 }
 
+async function ensureCustomerProfile({ name, email, cpf = "", phone = "" }) {
+  if (!db || !email) return;
+
+  const { error } = await db.rpc("upsert_customer_profile", {
+    name_input: name || email,
+    email_input: normalizeEmail(email),
+    cpf_input: cpf ? formatCpf(cpf) : "",
+    phone_input: phone || ""
+  });
+
+  if (error) throw error;
+}
+
 // ===============================
 // BUSCAR PROJETOS
 // ===============================
@@ -712,6 +725,13 @@ document.getElementById("formClienteLogin")?.addEventListener("submit", async fu
     }
 
     await loadClientProfile();
+    await ensureCustomerProfile({
+      name: clienteLogado?.name || email,
+      email,
+      cpf: clienteLogado?.cpf || "",
+      phone: clienteLogado?.phone || ""
+    });
+    await loadClientProfile();
     closeClientAuth();
     window.location.href = "index.html";
   } catch (error) {
@@ -737,7 +757,7 @@ document.getElementById("formClienteCadastro")?.addEventListener("submit", async
   }
 
   try {
-    const { error } = await db.auth.signUp({
+    const { data, error } = await db.auth.signUp({
       email,
       password,
       options: {
@@ -755,12 +775,18 @@ document.getElementById("formClienteCadastro")?.addEventListener("submit", async
     }
 
     const { error: loginError } = await db.auth.signInWithPassword({ email, password });
-    if (loginError) {
+    if (loginError && !data?.session) {
       errorBox.textContent = "Cadastro concluído. Faça login para continuar.";
       switchClientAuthTab("login");
       return;
     }
 
+    await ensureCustomerProfile({
+      name,
+      email,
+      cpf,
+      phone
+    });
     await loadClientProfile();
     this.reset();
     closeClientAuth();

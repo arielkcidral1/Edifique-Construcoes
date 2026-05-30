@@ -125,6 +125,123 @@ $$;
 REVOKE ALL ON FUNCTION public.get_customer_email_by_cpf(TEXT) FROM public;
 GRANT EXECUTE ON FUNCTION public.get_customer_email_by_cpf(TEXT) TO anon, authenticated;
 
+CREATE OR REPLACE FUNCTION public.upsert_customer_profile(
+  name_input TEXT,
+  email_input TEXT,
+  cpf_input TEXT,
+  phone_input TEXT
+)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  current_user_id UUID := (SELECT auth.uid());
+  current_email TEXT := (SELECT (auth.jwt()) ->> 'email');
+BEGIN
+  IF current_user_id IS NULL THEN
+    RAISE EXCEPTION 'Usuário não autenticado.' USING ERRCODE = '42501';
+  END IF;
+
+  IF current_email IS NULL OR lower(current_email) <> lower(email_input) THEN
+    RAISE EXCEPTION 'E-mail do cadastro não corresponde ao usuário autenticado.' USING ERRCODE = '42501';
+  END IF;
+
+  INSERT INTO public.customers (user_id, name, email, cpf, phone)
+  VALUES (
+    current_user_id,
+    COALESCE(NULLIF(name_input, ''), email_input, 'Cliente'),
+    email_input,
+    NULLIF(cpf_input, ''),
+    NULLIF(phone_input, '')
+  )
+  ON CONFLICT (email) DO UPDATE SET
+    user_id = COALESCE(public.customers.user_id, EXCLUDED.user_id),
+    name = EXCLUDED.name,
+    cpf = COALESCE(EXCLUDED.cpf, public.customers.cpf),
+    phone = COALESCE(EXCLUDED.phone, public.customers.phone);
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.admin_list_customers()
+RETURNS TABLE (
+  id BIGINT,
+  name TEXT,
+  email TEXT,
+  phone TEXT,
+  cpf TEXT,
+  created_at TIMESTAMPTZ
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF ((SELECT auth.jwt()) ->> 'email') <> 'admin@edifique.com' THEN
+    RAISE EXCEPTION 'Acesso negado.' USING ERRCODE = '42501';
+  END IF;
+
+  RETURN QUERY
+  SELECT c.id, c.name, c.email, c.phone, c.cpf, c.created_at
+  FROM public.customers c
+  ORDER BY c.created_at DESC NULLS LAST, c.id DESC;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.admin_update_customer(
+  customer_id_input BIGINT,
+  name_input TEXT,
+  email_input TEXT,
+  cpf_input TEXT,
+  phone_input TEXT
+)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF ((SELECT auth.jwt()) ->> 'email') <> 'admin@edifique.com' THEN
+    RAISE EXCEPTION 'Acesso negado.' USING ERRCODE = '42501';
+  END IF;
+
+  UPDATE public.customers
+  SET
+    name = name_input,
+    email = email_input,
+    cpf = NULLIF(cpf_input, ''),
+    phone = NULLIF(phone_input, '')
+  WHERE id = customer_id_input;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.admin_delete_customer(customer_id_input BIGINT)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF ((SELECT auth.jwt()) ->> 'email') <> 'admin@edifique.com' THEN
+    RAISE EXCEPTION 'Acesso negado.' USING ERRCODE = '42501';
+  END IF;
+
+  DELETE FROM public.customers
+  WHERE id = customer_id_input;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.upsert_customer_profile(TEXT, TEXT, TEXT, TEXT) FROM public;
+REVOKE ALL ON FUNCTION public.admin_list_customers() FROM public;
+REVOKE ALL ON FUNCTION public.admin_update_customer(BIGINT, TEXT, TEXT, TEXT, TEXT) FROM public;
+REVOKE ALL ON FUNCTION public.admin_delete_customer(BIGINT) FROM public;
+
+GRANT EXECUTE ON FUNCTION public.upsert_customer_profile(TEXT, TEXT, TEXT, TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_list_customers() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_update_customer(BIGINT, TEXT, TEXT, TEXT, TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_delete_customer(BIGINT) TO authenticated;
+
 INSERT INTO public.customers (user_id, name, email, cpf, phone)
 SELECT
   users.id,
@@ -153,7 +270,7 @@ REVOKE ALL ON TABLE public.reviews FROM anon, authenticated;
 GRANT SELECT ON TABLE public.projects TO anon, authenticated;
 GRANT SELECT ON TABLE public.project_photos TO anon, authenticated;
 GRANT SELECT ON TABLE public.reviews TO anon, authenticated;
-GRANT SELECT, UPDATE, DELETE ON TABLE public.customers TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.customers TO authenticated;
 GRANT INSERT ON TABLE public.reviews TO authenticated;
 GRANT INSERT, UPDATE, DELETE ON TABLE public.projects TO authenticated;
 GRANT INSERT, UPDATE, DELETE ON TABLE public.project_photos TO authenticated;
@@ -161,6 +278,8 @@ GRANT DELETE ON TABLE public.reviews TO authenticated;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO authenticated;
 
 DROP POLICY IF EXISTS "Customers can view their own profile" ON public.customers;
+DROP POLICY IF EXISTS "Customers can insert their own profile" ON public.customers;
+DROP POLICY IF EXISTS "Customers can update their own profile" ON public.customers;
 DROP POLICY IF EXISTS "Admins can view customers" ON public.customers;
 DROP POLICY IF EXISTS "Admins can update customers" ON public.customers;
 DROP POLICY IF EXISTS "Admins can delete customers" ON public.customers;
@@ -183,6 +302,19 @@ ON public.customers
 FOR SELECT
 TO authenticated
 USING ((SELECT auth.uid()) = user_id);
+
+CREATE POLICY "Customers can insert their own profile"
+ON public.customers
+FOR INSERT
+TO authenticated
+WITH CHECK ((SELECT auth.uid()) = user_id);
+
+CREATE POLICY "Customers can update their own profile"
+ON public.customers
+FOR UPDATE
+TO authenticated
+USING ((SELECT auth.uid()) = user_id)
+WITH CHECK ((SELECT auth.uid()) = user_id);
 
 -- Admin tem acesso completo aos cadastros de clientes do site.
 CREATE POLICY "Admins can view customers"
