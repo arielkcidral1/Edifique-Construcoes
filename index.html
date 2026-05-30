@@ -18,12 +18,19 @@
       <li><a href="#portfolio">Serviços</a></li>
       <li><a href="#depoimentos">Avaliações</a></li>
     </ul>
-    <div style="display: flex; gap: 1rem; align-items: center;">
+    <div class="nav-actions">
       <a class="nav-cta" href="#contato">WhatsApp</a>
-      <a href="funcionario.html" title="Login / Acesso Restrito" aria-label="Login" style="display: flex; align-items: center; justify-content: center; width: 42px; height: 42px; border-radius: 50%; border: 1px solid rgba(212, 175, 55, 0.4); color: #d4af37; text-decoration: none; transition: 0.3s;">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <button class="client-session-btn" id="clientSessionBtn" type="button" title="Conta do cliente">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
           <circle cx="12" cy="7" r="4"></circle>
+        </svg>
+        <span>Entrar Cliente</span>
+      </button>
+      <a class="admin-login-btn" href="admin.html" title="Login / Acesso Restrito" aria-label="Login restrito">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="11" width="18" height="10" rx="2"></rect>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
         </svg>
       </a>
     </div>
@@ -249,6 +256,72 @@
       </div>
     </div>
   </footer>
+
+  <div class="client-auth-overlay" id="clientAuthOverlay" aria-hidden="true">
+    <div class="client-auth-card" role="dialog" aria-modal="true" aria-labelledby="clientAuthTitle">
+      <div class="client-auth-head">
+        <div>
+          <span class="client-auth-kicker">Acesso do cliente</span>
+          <h2 id="clientAuthTitle">Entre ou cadastre-se</h2>
+        </div>
+        <button class="modal-close" id="clientAuthClose" type="button" aria-label="Fechar">&times;</button>
+      </div>
+
+      <p class="client-auth-copy" id="clientAuthCopy">
+        Use sua conta para acompanhar solicitações, enviar avaliações e manter seus dados com a Edifique.
+      </p>
+
+      <div class="client-auth-tabs" role="tablist">
+        <button class="client-auth-tab active" type="button" data-client-auth-tab="login">Login</button>
+        <button class="client-auth-tab" type="button" data-client-auth-tab="register">Cadastro</button>
+      </div>
+
+      <form id="formClienteLogin" class="client-auth-form active" novalidate>
+        <div class="form-group">
+          <label for="cliente-login-id">E-mail ou CPF</label>
+          <input type="text" id="cliente-login-id" placeholder="seu@email.com ou 000.000.000-00" required>
+        </div>
+        <div class="form-group">
+          <label for="cliente-login-pass">Senha</label>
+          <input type="password" id="cliente-login-pass" placeholder="Sua senha" required>
+        </div>
+        <span class="login-error" id="clienteLoginError"></span>
+        <button type="submit" class="btn-primary full">Entrar como cliente</button>
+      </form>
+
+      <form id="formClienteCadastro" class="client-auth-form" novalidate>
+        <div class="form-group">
+          <label for="cliente-cad-nome">Nome completo</label>
+          <input type="text" id="cliente-cad-nome" placeholder="Seu nome completo" required>
+        </div>
+        <div class="form-grid client-auth-grid">
+          <div class="form-group">
+            <label for="cliente-cad-cpf">CPF</label>
+            <input type="text" id="cliente-cad-cpf" placeholder="000.000.000-00" maxlength="14" required>
+          </div>
+          <div class="form-group">
+            <label for="cliente-cad-phone">WhatsApp</label>
+            <input type="tel" id="cliente-cad-phone" placeholder="(00) 00000-0000" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="cliente-cad-email">E-mail</label>
+          <input type="email" id="cliente-cad-email" placeholder="seu@email.com" required>
+        </div>
+        <div class="form-group">
+          <label for="cliente-cad-pass">Senha</label>
+          <input type="password" id="cliente-cad-pass" placeholder="Crie uma senha" required>
+        </div>
+        <span class="login-error" id="clienteCadastroError"></span>
+        <button type="submit" class="btn-primary full">Cadastrar e entrar</button>
+      </form>
+
+      <div class="client-auth-actions">
+        <button type="button" class="btn-ghost full" id="btnContinuarSemLogin">Continuar sem login</button>
+        <a class="btn-link" href="admin.html">Sou funcionário</a>
+      </div>
+    </div>
+  </div>
 
   <!-- SUPABASE -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>

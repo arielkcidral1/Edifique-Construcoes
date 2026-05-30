@@ -8,6 +8,132 @@ const db = supabase.createClient(
   SUPABASE_ANON_KEY
 );
 
+let clienteLogado = null;
+
+function normalizeEmail(value) {
+  return (value || "").trim().toLowerCase();
+}
+
+function normalizeCpf(value) {
+  return (value || "").replace(/\D/g, "");
+}
+
+function formatCpf(value) {
+  return normalizeCpf(value)
+    .slice(0, 11)
+    .replace(/(\d{3})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+}
+
+function formatPhone(value) {
+  const digits = (value || "").replace(/\D/g, "").slice(0, 11);
+  if (digits.length <= 10) {
+    return digits
+      .replace(/(\d{2})(\d)/, "($1) $2")
+      .replace(/(\d{4})(\d)/, "$1-$2");
+  }
+  return digits
+    .replace(/(\d{2})(\d)/, "($1) $2")
+    .replace(/(\d{5})(\d)/, "$1-$2");
+}
+
+function getFirstName(name) {
+  return (name || "Cliente").trim().split(" ")[0] || "Cliente";
+}
+
+function updateClientSessionUI() {
+  const btn = document.getElementById("clientSessionBtn");
+  if (!btn) return;
+
+  const label = btn.querySelector("span");
+  if (clienteLogado) {
+    document.body.classList.add("client-logged-in");
+    if (label) label.textContent = getFirstName(clienteLogado.name);
+    btn.title = `Cliente logado: ${clienteLogado.name || clienteLogado.email}`;
+  } else {
+    document.body.classList.remove("client-logged-in");
+    if (label) label.textContent = "Entrar Cliente";
+    btn.title = "Conta do cliente";
+  }
+}
+
+function switchClientAuthTab(tab) {
+  document.querySelectorAll(".client-auth-tab").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.clientAuthTab === tab);
+  });
+
+  document.querySelectorAll(".client-auth-form").forEach((form) => {
+    form.classList.toggle(
+      "active",
+      form.id === (tab === "register" ? "formClienteCadastro" : "formClienteLogin")
+    );
+  });
+
+  const loginError = document.getElementById("clienteLoginError");
+  const cadastroError = document.getElementById("clienteCadastroError");
+  if (loginError) loginError.textContent = "";
+  if (cadastroError) cadastroError.textContent = "";
+}
+
+function showClientAuth(tab = "login") {
+  const overlay = document.getElementById("clientAuthOverlay");
+  if (!overlay) return;
+
+  overlay.classList.add("open");
+  overlay.setAttribute("aria-hidden", "false");
+  switchClientAuthTab(tab);
+
+  setTimeout(() => {
+    const first = document.querySelector(".client-auth-form.active input");
+    if (first) first.focus();
+  }, 80);
+}
+
+function closeClientAuth() {
+  const overlay = document.getElementById("clientAuthOverlay");
+  if (!overlay) return;
+  overlay.classList.remove("open");
+  overlay.setAttribute("aria-hidden", "true");
+}
+
+async function resolveEmailFromCredential(credential) {
+  if (credential.includes("@")) return normalizeEmail(credential);
+
+  const cpf = normalizeCpf(credential);
+  if (cpf.length !== 11) return "";
+
+  const { data, error } = await db.rpc("get_customer_email_by_cpf", {
+    cpf_input: cpf
+  });
+
+  if (error) throw error;
+  return normalizeEmail(data);
+}
+
+async function loadClientProfile() {
+  const { data: sessionData } = await db.auth.getSession();
+  const user = sessionData?.session?.user;
+
+  if (!user) {
+    clienteLogado = null;
+    updateClientSessionUI();
+    return;
+  }
+
+  const { data } = await db
+    .from("customers")
+    .select("name, email, cpf, phone")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  clienteLogado = data || {
+    name: user.user_metadata?.name || user.email,
+    email: user.email
+  };
+  updateClientSessionUI();
+}
+
 // ===============================
 // BUSCAR PROJETOS
 // ===============================
@@ -253,6 +379,8 @@ window.addEventListener(
 // ===============================
 async function init() {
   try {
+    await loadClientProfile();
+
     const portfolioData =
       await fetchPortfolioData();
 
@@ -273,3 +401,128 @@ async function init() {
 }
 
 init();
+
+document.querySelectorAll(".client-auth-tab").forEach((btn) => {
+  btn.addEventListener("click", () => switchClientAuthTab(btn.dataset.clientAuthTab));
+});
+
+document.getElementById("clientSessionBtn")?.addEventListener("click", async () => {
+  if (clienteLogado) {
+    await db.auth.signOut();
+    clienteLogado = null;
+    updateClientSessionUI();
+    showClientAuth("login");
+    return;
+  }
+  showClientAuth("login");
+});
+
+document.getElementById("clientAuthClose")?.addEventListener("click", closeClientAuth);
+
+document.getElementById("clientAuthOverlay")?.addEventListener("click", (event) => {
+  if (event.target === event.currentTarget) closeClientAuth();
+});
+
+document.getElementById("btnContinuarSemLogin")?.addEventListener("click", closeClientAuth);
+
+document.getElementById("cliente-cad-cpf")?.addEventListener("input", function () {
+  this.value = formatCpf(this.value);
+});
+
+document.getElementById("cliente-login-id")?.addEventListener("input", function () {
+  if (/^\d[\d.\-]*$/.test(this.value)) this.value = formatCpf(this.value);
+});
+
+document.getElementById("cliente-cad-phone")?.addEventListener("input", function () {
+  this.value = formatPhone(this.value);
+});
+
+document.getElementById("formClienteLogin")?.addEventListener("submit", async function (event) {
+  event.preventDefault();
+
+  const credential = document.getElementById("cliente-login-id").value.trim();
+  const password = document.getElementById("cliente-login-pass").value;
+  const errorBox = document.getElementById("clienteLoginError");
+  errorBox.textContent = "";
+
+  if (!credential || !password) {
+    errorBox.textContent = "Informe e-mail/CPF e senha.";
+    return;
+  }
+
+  try {
+    const email = await resolveEmailFromCredential(credential);
+    if (!email) {
+      errorBox.textContent = "Cliente não encontrado.";
+      return;
+    }
+
+    const { error } = await db.auth.signInWithPassword({ email, password });
+    if (error) {
+      errorBox.textContent = "Cliente ou senha inválidos.";
+      return;
+    }
+
+    await loadClientProfile();
+    closeClientAuth();
+    window.location.href = "index.html";
+  } catch (error) {
+    console.error("Erro no login do cliente:", error);
+    errorBox.textContent = "Não foi possível entrar agora.";
+  }
+});
+
+document.getElementById("formClienteCadastro")?.addEventListener("submit", async function (event) {
+  event.preventDefault();
+
+  const name = document.getElementById("cliente-cad-nome").value.trim();
+  const cpf = normalizeCpf(document.getElementById("cliente-cad-cpf").value);
+  const phone = document.getElementById("cliente-cad-phone").value.trim();
+  const email = normalizeEmail(document.getElementById("cliente-cad-email").value);
+  const password = document.getElementById("cliente-cad-pass").value;
+  const errorBox = document.getElementById("clienteCadastroError");
+  errorBox.textContent = "";
+
+  if (!name || cpf.length !== 11 || !phone || !/\S+@\S+\.\S+/.test(email) || !password) {
+    errorBox.textContent = "Preencha nome, CPF, WhatsApp, e-mail e senha válidos.";
+    return;
+  }
+
+  try {
+    const { error } = await db.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          name,
+          cpf: formatCpf(cpf),
+          phone
+        }
+      }
+    });
+
+    if (error) {
+      errorBox.textContent = "Não foi possível cadastrar. Verifique se CPF ou e-mail já existem.";
+      return;
+    }
+
+    const { error: loginError } = await db.auth.signInWithPassword({ email, password });
+    if (loginError) {
+      errorBox.textContent = "Cadastro concluído. Faça login para continuar.";
+      switchClientAuthTab("login");
+      return;
+    }
+
+    await loadClientProfile();
+    this.reset();
+    closeClientAuth();
+    window.location.href = "index.html";
+  } catch (error) {
+    console.error("Erro no cadastro do cliente:", error);
+    errorBox.textContent = "Não foi possível cadastrar agora.";
+  }
+});
+
+db.auth.onAuthStateChange(() => {
+  loadClientProfile();
+});

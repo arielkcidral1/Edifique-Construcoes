@@ -19,6 +19,10 @@ CREATE UNIQUE INDEX IF NOT EXISTS customers_user_id_key
   ON public.customers(user_id)
   WHERE user_id IS NOT NULL;
 
+CREATE UNIQUE INDEX IF NOT EXISTS customers_cpf_digits_key
+  ON public.customers ((regexp_replace(COALESCE(cpf, ''), '\D', '', 'g')))
+  WHERE cpf IS NOT NULL AND regexp_replace(COALESCE(cpf, ''), '\D', '', 'g') <> '';
+
 CREATE TABLE IF NOT EXISTS public.projects (
   id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   name TEXT NOT NULL,
@@ -102,6 +106,21 @@ FOR EACH ROW EXECUTE FUNCTION private.confirm_new_user_email();
 UPDATE auth.users
 SET email_confirmed_at = COALESCE(email_confirmed_at, now())
 WHERE email_confirmed_at IS NULL;
+
+CREATE OR REPLACE FUNCTION public.get_customer_email_by_cpf(cpf_input TEXT)
+RETURNS TEXT
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT email
+  FROM public.customers
+  WHERE regexp_replace(COALESCE(cpf, ''), '\D', '', 'g') = regexp_replace(COALESCE(cpf_input, ''), '\D', '', 'g')
+  LIMIT 1;
+$$;
+
+REVOKE ALL ON FUNCTION public.get_customer_email_by_cpf(TEXT) FROM public;
+GRANT EXECUTE ON FUNCTION public.get_customer_email_by_cpf(TEXT) TO anon, authenticated;
 
 INSERT INTO public.customers (user_id, name, email, cpf, phone)
 SELECT
