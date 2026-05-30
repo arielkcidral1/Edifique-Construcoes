@@ -402,6 +402,28 @@
       background: var(--dark); text-align: center; padding: 7rem 4rem;
     }
     .testimonials-header { margin-bottom: 4rem; }
+    .review-action-btn {
+      margin-top: 1.6rem;
+      min-height: 44px;
+      padding: .75rem 1.45rem;
+      border: 1px solid rgba(201, 168, 76, .45);
+      border-radius: 6px;
+      background: rgba(201, 168, 76, .1);
+      color: var(--gold);
+      font-family: inherit;
+      font-size: .76rem;
+      font-weight: 700;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: border-color .2s, background .2s, color .2s, transform .2s;
+    }
+    .review-action-btn:hover {
+      border-color: var(--gold);
+      background: rgba(201, 168, 76, .18);
+      color: var(--bone);
+      transform: translateY(-1px);
+    }
     .testimonials-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2rem; }
     .testimonial-card {
       background: var(--charcoal); padding: 2.4rem;
@@ -503,7 +525,8 @@
     }
     .reveal.visible { opacity: 1; transform: translateY(0); }
 
-    .client-auth-overlay {
+    .client-auth-overlay,
+    .review-overlay {
       display: none;
       position: fixed; inset: 0; z-index: 600;
       align-items: center; justify-content: center;
@@ -511,8 +534,10 @@
       background: rgba(10, 9, 8, .72);
       backdrop-filter: blur(7px);
     }
-    .client-auth-overlay.open { display: flex; animation: fadeUp .25s ease both; }
-    .client-auth-card {
+    .client-auth-overlay.open,
+    .review-overlay.open { display: flex; animation: fadeUp .25s ease both; }
+    .client-auth-card,
+    .review-card {
       width: 100%; max-width: 510px;
       background: #1e1c1a;
       border: 1px solid rgba(201, 168, 76, .22);
@@ -577,13 +602,16 @@
     .form-group { margin-bottom: 1rem; }
     .form-grid { display: grid; }
     .client-auth-grid { grid-template-columns: 1fr 1fr; gap: .85rem; }
-    .client-auth-form label {
+    .client-auth-form label,
+    .review-card label {
       display: block; margin-bottom: .42rem;
       color: rgba(232, 223, 208, .74);
       font-size: .78rem; letter-spacing: .08em;
       text-transform: uppercase;
     }
-    .client-auth-form input {
+    .client-auth-form input,
+    .review-card select,
+    .review-card textarea {
       width: 100%; min-height: 46px;
       padding: .78rem .9rem;
       border: 1px solid rgba(232, 223, 208, .13);
@@ -594,7 +622,10 @@
       outline: none;
       transition: border-color .2s, box-shadow .2s;
     }
-    .client-auth-form input:focus {
+    .review-card textarea { resize: vertical; min-height: 128px; line-height: 1.55; }
+    .client-auth-form input:focus,
+    .review-card select:focus,
+    .review-card textarea:focus {
       border-color: rgba(201, 168, 76, .72);
       box-shadow: 0 0 0 3px rgba(201, 168, 76, .1);
     }

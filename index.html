@@ -203,6 +203,7 @@
     <div class="testimonials-header reveal">
       <div class="section-label">Depoimentos</div>
       <h2 class="section-title">O que nossos <em>clientes</em> dizem</h2>
+      <button class="review-action-btn" id="openReviewBtn" type="button">Fazer avaliação</button>
     </div>
     <div class="testimonials-grid"></div>
   </section>
@@ -314,6 +315,37 @@
         <button type="button" class="btn-ghost full" id="btnContinuarSemLogin">Continuar sem login</button>
         <a class="btn-link" href="admin-login.html">Sou funcionário</a>
       </div>
+    </div>
+  </div>
+
+  <div class="review-overlay" id="reviewOverlay" aria-hidden="true">
+    <div class="review-card" role="dialog" aria-modal="true" aria-labelledby="reviewTitle">
+      <div class="client-auth-head">
+        <div>
+          <span class="client-auth-kicker">Avaliação</span>
+          <h2 id="reviewTitle">Conte sua experiência</h2>
+        </div>
+        <button class="modal-close" id="reviewClose" type="button" aria-label="Fechar">&times;</button>
+      </div>
+
+      <form id="reviewForm" novalidate>
+        <div class="form-group">
+          <label for="reviewRating">Nota</label>
+          <select id="reviewRating" required>
+            <option value="5">5 - Excelente</option>
+            <option value="4">4 - Muito bom</option>
+            <option value="3">3 - Bom</option>
+            <option value="2">2 - Regular</option>
+            <option value="1">1 - Ruim</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="reviewComment">Depoimento</label>
+          <textarea id="reviewComment" rows="5" placeholder="Escreva sua avaliação..." required></textarea>
+        </div>
+        <span class="login-error" id="reviewError"></span>
+        <button type="submit" class="btn-primary full">Enviar avaliação</button>
+      </form>
     </div>
   </div>
 

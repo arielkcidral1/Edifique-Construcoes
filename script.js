@@ -97,6 +97,25 @@ function closeClientAuth() {
   overlay.setAttribute("aria-hidden", "true");
 }
 
+function showReviewForm() {
+  const overlay = document.getElementById("reviewOverlay");
+  if (!overlay) return;
+  overlay.classList.add("open");
+  overlay.setAttribute("aria-hidden", "false");
+
+  setTimeout(() => {
+    const comment = document.getElementById("reviewComment");
+    if (comment) comment.focus();
+  }, 80);
+}
+
+function closeReviewForm() {
+  const overlay = document.getElementById("reviewOverlay");
+  if (!overlay) return;
+  overlay.classList.remove("open");
+  overlay.setAttribute("aria-hidden", "true");
+}
+
 async function resolveEmailFromCredential(credential) {
   if (credential.includes("@")) return normalizeEmail(credential);
 
@@ -425,6 +444,23 @@ document.getElementById("clientAuthOverlay")?.addEventListener("click", (event) 
 
 document.getElementById("btnContinuarSemLogin")?.addEventListener("click", closeClientAuth);
 
+document.getElementById("openReviewBtn")?.addEventListener("click", () => {
+  if (!clienteLogado) {
+    showClientAuth("login");
+    const loginError = document.getElementById("clienteLoginError");
+    if (loginError) loginError.textContent = "Faça login ou cadastre-se para enviar uma avaliação.";
+    return;
+  }
+
+  showReviewForm();
+});
+
+document.getElementById("reviewClose")?.addEventListener("click", closeReviewForm);
+
+document.getElementById("reviewOverlay")?.addEventListener("click", (event) => {
+  if (event.target === event.currentTarget) closeReviewForm();
+});
+
 document.getElementById("cliente-cad-cpf")?.addEventListener("input", function () {
   this.value = formatCpf(this.value);
 });
@@ -520,6 +556,44 @@ document.getElementById("formClienteCadastro")?.addEventListener("submit", async
   } catch (error) {
     console.error("Erro no cadastro do cliente:", error);
     errorBox.textContent = "Não foi possível cadastrar agora.";
+  }
+});
+
+document.getElementById("reviewForm")?.addEventListener("submit", async function (event) {
+  event.preventDefault();
+
+  const rating = parseInt(document.getElementById("reviewRating").value, 10);
+  const comment = document.getElementById("reviewComment").value.trim();
+  const errorBox = document.getElementById("reviewError");
+  errorBox.textContent = "";
+
+  if (!clienteLogado) {
+    closeReviewForm();
+    showClientAuth("login");
+    return;
+  }
+
+  if (!rating || rating < 1 || rating > 5 || !comment) {
+    errorBox.textContent = "Informe uma nota e escreva seu depoimento.";
+    return;
+  }
+
+  try {
+    const { error } = await db.from("reviews").insert([
+      { rating, comment }
+    ]);
+
+    if (error) throw error;
+
+    this.reset();
+    closeReviewForm();
+
+    const testimonialsData = await fetchTestimonialsData();
+    renderTestimonials(testimonialsData);
+    setupRevealAnimation();
+  } catch (error) {
+    console.error("Erro ao enviar avaliação:", error);
+    errorBox.textContent = "Não foi possível enviar sua avaliação agora.";
   }
 });
 
