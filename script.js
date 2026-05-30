@@ -687,8 +687,8 @@ document.getElementById("cliente-cad-phone")?.addEventListener("input", function
 function getClientSignupErrorMessage(error) {
   const message = `${error?.message || ""} ${error?.code || ""}`.toLowerCase();
 
-  if (message.includes("weak_password") || message.includes("password") || message.includes("senha")) {
-    return "Senha recusada pelo Supabase Auth. O site nao limita tamanho de senha; ajuste as regras de senha no painel Supabase ou tente uma senha diferente.";
+  if (message.includes("weak_password") || message.includes("password should be at least 6")) {
+    return "A senha precisa ter pelo menos 6 caracteres.";
   }
 
   if (message.includes("already") || message.includes("registered") || message.includes("duplicate")) {
@@ -753,6 +753,11 @@ document.getElementById("formClienteCadastro")?.addEventListener("submit", async
 
   if (!name || cpf.length !== 11 || !phone || !/\S+@\S+\.\S+/.test(email) || !password) {
     errorBox.textContent = "Preencha nome, CPF, WhatsApp, e-mail e senha válidos.";
+    return;
+  }
+
+  if (password.length < 6) {
+    errorBox.textContent = "A senha precisa ter pelo menos 6 caracteres.";
     return;
   }
 
