@@ -49,7 +49,7 @@
       letter-spacing: .08em;
       text-transform: uppercase;
     }
-    input {
+    input, select {
       width: 100%;
       min-height: 46px;
       padding: .78rem .9rem;
@@ -61,7 +61,7 @@
       outline: none;
       transition: border-color .2s, box-shadow .2s;
     }
-    input:focus { border-color: rgba(201,168,76,.72); box-shadow: 0 0 0 3px rgba(201,168,76,.1); }
+    input:focus, select:focus { border-color: rgba(201,168,76,.72); box-shadow: 0 0 0 3px rgba(201,168,76,.1); }
     button {
       width: 100%;
       min-height: 46px;
@@ -99,12 +99,17 @@
   <main class="admin-login-card">
     <span class="kicker">Acesso restrito</span>
     <h1>Login do administrador</h1>
-    <p>Entre com a conta autorizada para gerenciar avaliacoes, obras e fotos do site.</p>
+    <p>Entre com seu nome autorizado para gerenciar avaliacoes, obras e fotos do site.</p>
 
     <form id="adminLoginForm" novalidate>
       <div class="form-group">
-        <label for="adminEmail">E-mail</label>
-        <input type="email" id="adminEmail" placeholder="admin@edifique.com" autocomplete="username" required>
+        <label for="adminName">Nome</label>
+        <select id="adminName" autocomplete="username" required>
+          <option value="">Selecione seu nome</option>
+          <option value="Anderson">Anderson</option>
+          <option value="Ana">Ana</option>
+          <option value="Ariel">Ariel</option>
+        </select>
       </div>
       <div class="form-group">
         <label for="adminPassword">Senha</label>
@@ -123,6 +128,7 @@
     const SUPABASE_ANON_KEY = "sb_publishable_k-VnTcGnw9yTPXteKozg3w_z4fi_uf8";
     const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     const ADMIN_EMAIL = "admin@edifique.com";
+    const ADMIN_NAMES = ["anderson", "ana", "ariel"];
 
     window.addEventListener("load", async () => {
       const { data } = await supabaseClient.auth.getSession();
@@ -134,22 +140,27 @@
     document.getElementById("adminLoginForm").addEventListener("submit", async (event) => {
       event.preventDefault();
 
-      const email = document.getElementById("adminEmail").value.trim().toLowerCase();
+      const name = document.getElementById("adminName").value.trim().toLowerCase();
       const password = document.getElementById("adminPassword").value;
       const errorBox = document.getElementById("adminLoginError");
       const button = document.getElementById("adminLoginButton");
       errorBox.textContent = "";
 
-      if (!email || !password) {
-        errorBox.textContent = "Informe e-mail e senha.";
+      if (!name || !password) {
+        errorBox.textContent = "Informe nome e senha.";
+        return;
+      }
+
+      if (!ADMIN_NAMES.includes(name)) {
+        errorBox.textContent = "Nome sem acesso ao painel admin.";
         return;
       }
 
       button.disabled = true;
       try {
-        const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+        const { data, error } = await supabaseClient.auth.signInWithPassword({ email: ADMIN_EMAIL, password });
         if (error) {
-          errorBox.textContent = "E-mail ou senha invalidos.";
+          errorBox.textContent = "Nome ou senha invalidos.";
           return;
         }
 
