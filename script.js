@@ -691,11 +691,27 @@ function getClientSignupErrorMessage(error) {
     return "A senha precisa ter pelo menos 6 caracteres.";
   }
 
-  if (message.includes("already") || message.includes("registered") || message.includes("duplicate")) {
+  if (
+    message.includes("already") ||
+    message.includes("registered") ||
+    message.includes("duplicate") ||
+    message.includes("cpf") ||
+    message.includes("23505")
+  ) {
     return "CPF ou e-mail ja cadastrado.";
   }
 
-  return "Nao foi possivel cadastrar. Verifique CPF, e-mail e WhatsApp.";
+  if (message.includes("database") || message.includes("saving new user")) {
+    return "Nao foi possivel salvar o cadastro no banco. Tente outro CPF/e-mail ou fale com o administrador.";
+  }
+
+  if (message.includes("rate") || message.includes("too many")) {
+    return "Muitas tentativas em pouco tempo. Aguarde alguns minutos e tente novamente.";
+  }
+
+  return error?.message
+    ? `Nao foi possivel cadastrar: ${error.message}`
+    : "Nao foi possivel cadastrar. Verifique CPF, e-mail e WhatsApp.";
 }
 
 document.getElementById("formClienteLogin")?.addEventListener("submit", async function (event) {
@@ -779,8 +795,10 @@ document.getElementById("formClienteCadastro")?.addEventListener("submit", async
       return;
     }
 
-    const { error: loginError } = await db.auth.signInWithPassword({ email, password });
-    if (loginError && !data?.session) {
+    const { error: loginError } = data?.session
+      ? { error: null }
+      : await db.auth.signInWithPassword({ email, password });
+    if (loginError) {
       errorBox.textContent = "Cadastro concluído. Faça login para continuar.";
       switchClientAuthTab("login");
       return;
