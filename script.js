@@ -920,10 +920,14 @@ const nav =
 window.addEventListener(
   "scroll",
   () => {
-    nav.style.background =
-      window.scrollY > 60
-        ? "rgba(7,16,20,.97)"
-        : "linear-gradient(to bottom, rgba(7,16,20,.92) 0%, transparent 100%)";
+    if (window.innerWidth > 900) {
+      nav.style.background = ""; // Mantém o estilo CSS fixo da barra lateral
+    } else {
+      nav.style.background =
+        window.scrollY > 60
+          ? "rgba(7,16,20,.97)"
+          : "linear-gradient(to bottom, rgba(7,16,20,.92) 0%, transparent 100%)";
+    }
   }
 );
 
