@@ -72,20 +72,6 @@
       color: var(--bone);
       transform: translateY(-1px);
     }
-    .admin-login-btn {
-      display: flex; align-items: center; justify-content: center;
-      width: 42px; height: 42px; flex: 0 0 42px;
-      border-radius: 50%;
-      border: 1px solid rgba(212, 175, 55, 0.4);
-      color: #d4af37;
-      text-decoration: none;
-      transition: border-color .2s, background .2s, transform .2s;
-    }
-    .admin-login-btn:hover {
-      border-color: var(--gold);
-      background: rgba(201, 168, 76, .12);
-      transform: translateY(-1px);
-    }
 
     /* ── HERO ── */
     .hero {
