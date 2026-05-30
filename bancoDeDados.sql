@@ -78,6 +78,9 @@ BEGIN
     phone = COALESCE(EXCLUDED.phone, public.customers.phone);
 
   RETURN NEW;
+EXCEPTION
+  WHEN unique_violation THEN
+    RAISE EXCEPTION 'CPF ou e-mail já cadastrado.' USING ERRCODE = '23505';
 END;
 $$;
 
