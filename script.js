@@ -473,6 +473,20 @@ document.getElementById("cliente-cad-phone")?.addEventListener("input", function
   this.value = formatPhone(this.value);
 });
 
+function getClientSignupErrorMessage(error) {
+  const message = `${error?.message || ""} ${error?.code || ""}`.toLowerCase();
+
+  if (message.includes("weak_password") || message.includes("password") || message.includes("senha")) {
+    return "Senha recusada pelo Supabase Auth. O site nao limita tamanho de senha; ajuste as regras de senha no painel Supabase ou tente uma senha diferente.";
+  }
+
+  if (message.includes("already") || message.includes("registered") || message.includes("duplicate")) {
+    return "CPF ou e-mail ja cadastrado.";
+  }
+
+  return "Nao foi possivel cadastrar. Verifique CPF, e-mail e WhatsApp.";
+}
+
 document.getElementById("formClienteLogin")?.addEventListener("submit", async function (event) {
   event.preventDefault();
 
@@ -538,7 +552,7 @@ document.getElementById("formClienteCadastro")?.addEventListener("submit", async
     });
 
     if (error) {
-      errorBox.textContent = "Não foi possível cadastrar. Verifique se CPF ou e-mail já existem.";
+      errorBox.textContent = getClientSignupErrorMessage(error);
       return;
     }
 
