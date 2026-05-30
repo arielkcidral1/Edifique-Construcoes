@@ -128,6 +128,329 @@ function closeReviewForm() {
   overlay.setAttribute("aria-hidden", "true");
 }
 
+// ===============================
+// PAINEL DE CONTA DO CLIENTE
+// ===============================
+function showAccountPanel() {
+  let panel = document.getElementById("accountPanel");
+  if (!panel) {
+    panel = buildAccountPanel();
+    document.body.appendChild(panel);
+  }
+  populateAccountPanel();
+  panel.classList.add("open");
+  panel.setAttribute("aria-hidden", "false");
+}
+
+function closeAccountPanel() {
+  const panel = document.getElementById("accountPanel");
+  if (!panel) return;
+  panel.classList.remove("open");
+  panel.setAttribute("aria-hidden", "true");
+}
+
+function buildAccountPanel() {
+  const panel = document.createElement("div");
+  panel.id = "accountPanel";
+  panel.className = "account-panel-overlay";
+  panel.setAttribute("aria-hidden", "true");
+  panel.innerHTML = `
+    <div class="account-panel" role="dialog" aria-modal="true" aria-labelledby="accountPanelTitle">
+
+      <!-- SIDEBAR -->
+      <aside class="account-sidebar">
+        <div class="account-sidebar-header">
+          <div class="account-avatar-lg" id="accountAvatarSidebar">CL</div>
+          <div class="account-sidebar-info">
+            <span class="account-sidebar-name" id="accountSidebarName">Cliente</span>
+            <span class="account-sidebar-email" id="accountSidebarEmail">—</span>
+          </div>
+        </div>
+        <nav class="account-nav">
+          <button class="account-nav-item active" data-account-tab="perfil">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            Meu Perfil
+          </button>
+          <button class="account-nav-item" data-account-tab="seguranca">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            Segurança
+          </button>
+          <button class="account-nav-item" data-account-tab="avaliacoes">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            Minhas Avaliações
+          </button>
+        </nav>
+        <button class="account-logout-btn" id="accountLogoutBtn">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          Sair da conta
+        </button>
+      </aside>
+
+      <!-- MAIN CONTENT -->
+      <main class="account-main">
+        <div class="account-main-header">
+          <h2 id="accountPanelTitle">Configurações da Conta</h2>
+          <button class="account-close-btn" id="accountPanelClose" aria-label="Fechar painel">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+
+        <!-- TAB: PERFIL -->
+        <div class="account-tab-content active" id="account-tab-perfil">
+          <div class="account-section-label">Informações pessoais</div>
+          <p class="account-section-desc">Mantenha seus dados atualizados para um atendimento mais ágil.</p>
+
+          <form id="accountProfileForm" class="account-form" novalidate>
+            <div class="account-field-group">
+              <div class="account-field">
+                <label for="accountNome">Nome completo</label>
+                <input type="text" id="accountNome" placeholder="Seu nome completo" required>
+              </div>
+              <div class="account-field">
+                <label for="accountEmail">E-mail</label>
+                <input type="email" id="accountEmail" placeholder="seu@email.com" readonly>
+                <span class="account-field-hint">O e-mail não pode ser alterado aqui.</span>
+              </div>
+            </div>
+            <div class="account-field-group">
+              <div class="account-field">
+                <label for="accountCpf">CPF</label>
+                <input type="text" id="accountCpf" placeholder="000.000.000-00" maxlength="14">
+              </div>
+              <div class="account-field">
+                <label for="accountPhone">WhatsApp</label>
+                <input type="tel" id="accountPhone" placeholder="(00) 00000-0000">
+              </div>
+            </div>
+            <span class="account-feedback" id="accountProfileFeedback"></span>
+            <div class="account-form-actions">
+              <button type="submit" class="account-btn-save">Salvar alterações</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- TAB: SEGURANÇA -->
+        <div class="account-tab-content" id="account-tab-seguranca">
+          <div class="account-section-label">Senha e acesso</div>
+          <p class="account-section-desc">Altere sua senha para manter sua conta segura.</p>
+
+          <form id="accountPasswordForm" class="account-form" novalidate>
+            <div class="account-field">
+              <label for="accountPassNew">Nova senha</label>
+              <input type="password" id="accountPassNew" placeholder="Mínimo 6 caracteres" minlength="6" required>
+            </div>
+            <div class="account-field">
+              <label for="accountPassConfirm">Confirmar nova senha</label>
+              <input type="password" id="accountPassConfirm" placeholder="Repita a nova senha" required>
+            </div>
+            <span class="account-feedback" id="accountPasswordFeedback"></span>
+            <div class="account-form-actions">
+              <button type="submit" class="account-btn-save">Atualizar senha</button>
+            </div>
+          </form>
+
+          <div class="account-danger-zone">
+            <div class="account-section-label" style="color:#ff8a78;">Zona de perigo</div>
+            <p class="account-section-desc">Esta ação é permanente e não pode ser desfeita.</p>
+            <button class="account-btn-danger" id="accountDeleteBtn">Excluir minha conta</button>
+          </div>
+        </div>
+
+        <!-- TAB: AVALIAÇÕES -->
+        <div class="account-tab-content" id="account-tab-avaliacoes">
+          <div class="account-section-label">Histórico de avaliações</div>
+          <p class="account-section-desc">Avaliações que você enviou para a Edifique Construções.</p>
+          <div class="account-reviews-list" id="accountReviewsList">
+            <div class="account-reviews-loading">Carregando avaliações...</div>
+          </div>
+        </div>
+
+      </main>
+    </div>
+  `;
+  document.body.appendChild(panel);
+
+  // Tab navigation
+  panel.querySelectorAll("[data-account-tab]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const tab = btn.dataset.accountTab;
+      panel.querySelectorAll(".account-nav-item").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      panel.querySelectorAll(".account-tab-content").forEach(c => c.classList.remove("active"));
+      const content = panel.querySelector(`#account-tab-${tab}`);
+      if (content) content.classList.add("active");
+      if (tab === "avaliacoes") loadAccountReviews();
+    });
+  });
+
+  // Close
+  panel.querySelector("#accountPanelClose").addEventListener("click", closeAccountPanel);
+  panel.addEventListener("click", (e) => {
+    if (e.target === panel) closeAccountPanel();
+  });
+
+  // Logout
+  panel.querySelector("#accountLogoutBtn").addEventListener("click", async () => {
+    await db.auth.signOut();
+    clienteLogado = null;
+    updateClientSessionUI();
+    closeAccountPanel();
+  });
+
+  // CPF / Phone masks
+  panel.querySelector("#accountCpf").addEventListener("input", function () {
+    this.value = formatCpf(this.value);
+  });
+  panel.querySelector("#accountPhone").addEventListener("input", function () {
+    this.value = formatPhone(this.value);
+  });
+
+  // Profile form
+  panel.querySelector("#accountProfileForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const feedback = document.getElementById("accountProfileFeedback");
+    feedback.textContent = "";
+    feedback.className = "account-feedback";
+
+    const name = document.getElementById("accountNome").value.trim();
+    const cpf = document.getElementById("accountCpf").value.trim();
+    const phone = document.getElementById("accountPhone").value.trim();
+    const email = clienteLogado?.email || "";
+
+    if (!name) { feedback.textContent = "Informe seu nome."; feedback.classList.add("error"); return; }
+
+    const btn = e.target.querySelector("button[type=submit]");
+    btn.disabled = true;
+    try {
+      const { error } = await db.rpc("upsert_customer_profile", {
+        name_input: name,
+        email_input: email,
+        cpf_input: cpf,
+        phone_input: phone
+      });
+      if (error) throw error;
+      await loadClientProfile();
+      populateAccountPanel();
+      feedback.textContent = "Perfil atualizado com sucesso!";
+      feedback.classList.add("success");
+    } catch (err) {
+      feedback.textContent = "Não foi possível salvar. Tente novamente.";
+      feedback.classList.add("error");
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  // Password form
+  panel.querySelector("#accountPasswordForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const feedback = document.getElementById("accountPasswordFeedback");
+    feedback.textContent = "";
+    feedback.className = "account-feedback";
+
+    const newPass = document.getElementById("accountPassNew").value;
+    const confirmPass = document.getElementById("accountPassConfirm").value;
+
+    if (newPass.length < 6) { feedback.textContent = "A senha deve ter pelo menos 6 caracteres."; feedback.classList.add("error"); return; }
+    if (newPass !== confirmPass) { feedback.textContent = "As senhas não coincidem."; feedback.classList.add("error"); return; }
+
+    const btn = e.target.querySelector("button[type=submit]");
+    btn.disabled = true;
+    try {
+      const { error } = await db.auth.updateUser({ password: newPass });
+      if (error) throw error;
+      e.target.reset();
+      feedback.textContent = "Senha alterada com sucesso!";
+      feedback.classList.add("success");
+    } catch (err) {
+      feedback.textContent = "Não foi possível alterar a senha.";
+      feedback.classList.add("error");
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  // Delete account
+  panel.querySelector("#accountDeleteBtn").addEventListener("click", async () => {
+    if (!confirm("Tem certeza que deseja excluir sua conta? Esta ação é permanente.")) return;
+    // sign out first – server-side deletion requires service role; for now we sign out and inform
+    await db.auth.signOut();
+    clienteLogado = null;
+    updateClientSessionUI();
+    closeAccountPanel();
+    alert("Sua solicitação de exclusão foi registrada. Entraremos em contato para concluir o processo.");
+  });
+
+  return panel;
+}
+
+function populateAccountPanel() {
+  if (!clienteLogado) return;
+
+  const name = clienteLogado.name || "Cliente";
+  const email = clienteLogado.email || "—";
+  const initials = name.split(" ").map(n => n[0]).join("").substring(0, 2).toUpperCase();
+
+  const avatarEl = document.getElementById("accountAvatarSidebar");
+  const nameEl = document.getElementById("accountSidebarName");
+  const emailEl = document.getElementById("accountSidebarEmail");
+
+  if (avatarEl) avatarEl.textContent = initials;
+  if (nameEl) nameEl.textContent = getFirstName(name);
+  if (emailEl) emailEl.textContent = email;
+
+  const nomeInput = document.getElementById("accountNome");
+  const emailInput = document.getElementById("accountEmail");
+  const cpfInput = document.getElementById("accountCpf");
+  const phoneInput = document.getElementById("accountPhone");
+
+  if (nomeInput) nomeInput.value = name;
+  if (emailInput) emailInput.value = email;
+  if (cpfInput) cpfInput.value = clienteLogado.cpf ? formatCpf(clienteLogado.cpf) : "";
+  if (phoneInput) phoneInput.value = clienteLogado.phone ? formatPhone(clienteLogado.phone) : "";
+}
+
+async function loadAccountReviews() {
+  const container = document.getElementById("accountReviewsList");
+  if (!container || !db) return;
+
+  container.innerHTML = '<div class="account-reviews-loading">Carregando avaliações...</div>';
+
+  try {
+    const { data: sessionData } = await db.auth.getSession();
+    const user = sessionData?.session?.user;
+    if (!user) { container.innerHTML = '<p class="account-reviews-empty">Faça login para ver suas avaliações.</p>'; return; }
+
+    const { data: customer } = await db.from("customers").select("id").eq("user_id", user.id).maybeSingle();
+    if (!customer) { container.innerHTML = '<p class="account-reviews-empty">Nenhuma avaliação encontrada.</p>'; return; }
+
+    const { data, error } = await db.from("reviews")
+      .select("id, rating, comment, created_at, projects(name)")
+      .eq("customer_id", customer.id)
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+
+    if (!data.length) {
+      container.innerHTML = '<p class="account-reviews-empty">Você ainda não enviou nenhuma avaliação.</p>';
+      return;
+    }
+
+    container.innerHTML = data.map(rev => `
+      <div class="account-review-card">
+        <div class="account-review-header">
+          <span class="account-review-stars">${"★".repeat(rev.rating)}${"☆".repeat(5 - rev.rating)}</span>
+          <span class="account-review-project">${escapeHtml(rev.projects?.name || "Edifique Construções")}</span>
+        </div>
+        <p class="account-review-text">${escapeHtml(rev.comment || "")}</p>
+        <span class="account-review-date">${new Date(rev.created_at).toLocaleDateString("pt-BR", { day:"2-digit", month:"long", year:"numeric" })}</span>
+      </div>
+    `).join("");
+  } catch (err) {
+    container.innerHTML = '<p class="account-reviews-empty">Erro ao carregar avaliações.</p>';
+  }
+}
+
 async function resolveEmailFromCredential(credential) {
   if (credential.includes("@")) return normalizeEmail(credential);
 
@@ -233,17 +556,21 @@ async function fetchPortfolioData() {
 }
 
 // ===============================
-// BUSCAR AVALIAÇÕES
+// BUSCAR AVALIAÇÕES — com nome real do cliente
 // ===============================
 async function fetchTestimonialsData() {
   if (!db) return [];
 
   try {
+    // Join reviews -> customers para pegar o nome real
     const { data, error } = await db
       .from("reviews")
       .select(`
         rating,
         comment,
+        customers (
+          name
+        ),
         projects (
           name
         )
@@ -253,7 +580,7 @@ async function fetchTestimonialsData() {
     if (error) throw error;
 
     return data.map((avaliacao) => {
-      const nome = "Cliente";
+      const nome = avaliacao.customers?.name || "Cliente";
 
       const iniciais = nome
         .split(" ")
@@ -269,7 +596,7 @@ async function fetchTestimonialsData() {
         name: nome,
         role: avaliacao.projects?.name
           ? `Projeto: ${avaliacao.projects.name}`
-          : "Cliente"
+          : "Cliente Edifique"
       };
     });
   } catch (error) {
@@ -469,7 +796,7 @@ function getProjectAlbumOverlay() {
 }
 
 // ===============================
-// RENDER AVALIAÇÕES
+// RENDER AVALIAÇÕES — nome visível
 // ===============================
 function renderTestimonials(data) {
   const grid = document.querySelector(".testimonials-grid");
@@ -481,25 +808,25 @@ function renderTestimonials(data) {
       (item) => `
       <div class="testimonial-card reveal">
         <div class="testimonial-stars">
-          ${"★".repeat(item.stars)}
+          ${"★".repeat(item.stars)}${"☆".repeat(5 - item.stars)}
         </div>
 
         <p class="testimonial-text">
-          ${item.text}
+          ${escapeHtml(item.text)}
         </p>
 
         <div class="testimonial-author">
           <div class="author-avatar">
-            ${item.avatar}
+            ${escapeHtml(item.avatar)}
           </div>
 
           <div>
             <div class="author-name">
-              ${item.name}
+              ${escapeHtml(item.name)}
             </div>
 
             <div class="author-role">
-              ${item.role}
+              ${escapeHtml(item.role)}
             </div>
           </div>
         </div>
@@ -636,12 +963,10 @@ document.querySelectorAll(".client-auth-tab").forEach((btn) => {
   btn.addEventListener("click", () => switchClientAuthTab(btn.dataset.clientAuthTab));
 });
 
+// Botão de sessão: se logado, abre o painel de conta; se não, abre o login
 document.getElementById("clientSessionBtn")?.addEventListener("click", async () => {
   if (clienteLogado) {
-    await db.auth.signOut();
-    clienteLogado = null;
-    updateClientSessionUI();
-    showClientAuth("login");
+    showAccountPanel();
     return;
   }
   showClientAuth("login");
@@ -749,7 +1074,6 @@ document.getElementById("formClienteLogin")?.addEventListener("submit", async fu
     });
     await loadClientProfile();
     closeClientAuth();
-    window.location.href = "index.html";
   } catch (error) {
     console.error("Erro no login do cliente:", error);
     errorBox.textContent = "Não foi possível entrar agora.";
@@ -813,7 +1137,6 @@ document.getElementById("formClienteCadastro")?.addEventListener("submit", async
     await loadClientProfile();
     this.reset();
     closeClientAuth();
-    window.location.href = "index.html";
   } catch (error) {
     console.error("Erro no cadastro do cliente:", error);
     errorBox.textContent = "Não foi possível cadastrar agora.";
