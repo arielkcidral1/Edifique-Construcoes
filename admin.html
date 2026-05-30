@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Painel Admin - Edifique Construções</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet" />
+  <style>
+    body {
+      font-family: 'DM Sans', sans-serif; background-color: #141210; color: #f5f5f5; margin: 0; padding: 0;
+    }
+    .login-container {
+      display: flex; justify-content: center; align-items: center; min-height: 100vh;
+    }
+    .box {
+      background-color: #1e1c1a; padding: 2rem; border-radius: 8px; width: 100%; max-width: 400px;
+    }
+    h2, h3 { color: #d4af37; margin-top: 0; }
+    .form-group { margin-bottom: 1rem; }
+    label { display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #aaa; }
+    input, select, textarea {
+      width: 100%; padding: 0.8rem; border: 1px solid #333; background: #141210; color: #fff; border-radius: 4px; box-sizing: border-box;
+    }
+    button {
+      padding: 0.8rem 1.5rem; background-color: #d4af37; color: #141210; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;
+    }
+    button:hover { background-color: #bfa030; }
+    button.danger { background-color: #dc3545; color: white; }
+    button.danger:hover { background-color: #c82333; }
+    .hidden { display: none !important; }
+    
+    /* Dashboard Styles */
+    .dashboard { display: flex; min-height: 100vh; }
+    .sidebar { width: 250px; background: #1e1c1a; padding: 2rem 1rem; }
+    .sidebar a { display: block; padding: 1rem; color: #fff; text-decoration: none; border-radius: 4px; margin-bottom: 0.5rem; cursor: pointer;}
+    .sidebar a:hover, .sidebar a.active { background: #d4af37; color: #141210; }
+    .content { flex: 1; padding: 2rem; }
+    .card { background: #1e1c1a; padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem; }
+    
+    /* Lista de avaliações */
+    .review-item { border-bottom: 1px solid #333; padding: 1rem 0; display: flex; justify-content: space-between; align-items: center;}
+    .review-item:last-child { border-bottom: none; }
+  </style>
+</head>
+<body>
+
+  <!-- LOGIN ADMIN -->
+  <div id="loginView" class="login-container">
+    <div class="box">
+      <h2>Acesso Administrativo</h2>
+      <div class="form-group">
+        <label>E-mail</label>
+        <input type="email" id="adminEmail" placeholder="admin@edifique.com" />
+      </div>
+      <div class="form-group">
+        <label>Senha</label>
+        <input type="password" id="adminPassword" placeholder="******" />
+      </div>
+      <button style="width:100%" onclick="loginAdmin()">Entrar no Painel</button>
+    </div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div id="dashboardView" class="dashboard hidden">
+    <div class="sidebar">
+      <h2>Painel Edifique</h2>
+      <a class="active" onclick="showTab('tab-avaliacoes')">Gerenciar Avaliações</a>
+      <a onclick="showTab('tab-obras')">Adicionar Obras/Fotos</a>
+      <a onclick="sairAdmin()" style="margin-top: 2rem; background: #333;">Sair</a>
+    </div>
+    
+    <div class="content">
+      <!-- TAB AVALIAÇÕES -->
+      <div id="tab-avaliacoes" class="tab-content">
+        <h3>Avaliações Recebidas</h3>
+        <div class="card">
+          <div id="reviewsList">Carregando...</div>
+        </div>
+      </div>
+
+      <!-- TAB OBRAS E FOTOS -->
+      <div id="tab-obras" class="tab-content hidden">
+        <h3>1. Cadastrar Nova Obra</h3>
+        <div class="card">
+          <div class="form-group">
+            <label>Nome do Projeto</label>
+            <input type="text" id="projName" placeholder="Ex: Condomínio Residencial Y" />
+          </div>
+          <div class="form-group">
+            <label>Categoria / Descrição (Opcional)</label>
+            <input type="text" id="projDesc" placeholder="Ex: Recuperação Estrutural" />
+          </div>
+          <button onclick="criarProjeto()">Salvar Projeto</button>
+        </div>
+
+        <h3>2. Adicionar Foto a uma Obra</h3>
+        <div class="card">
+          <div class="form-group">
+            <label>Selecione a Obra</label>
+            <select id="projSelect">
+              <option value="">Carregando obras...</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Arquivo de Imagem</label>
+            <input type="file" id="projPhoto" accept="image/*" />
+          </div>
+          <button onclick="fazerUploadFoto()">Fazer Upload</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SUPABASE -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    const SUPABASE_URL = "https://uimjqymytxqvvwrojcgg.supabase.co";
+    const SUPABASE_ANON_KEY = "sb_publishable_k-VnTcGnw9yTPXteKozg3w_z4fi_uf8";
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // Navegação de abas
+    function showTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+      document.getElementById(tabId).classList.remove('hidden');
+    }
+
+    async function loginAdmin() {
+      const email = document.getElementById('adminEmail').value;
+      const password = document.getElementById('adminPassword').value;
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      
+      if (error) {
+        alert("Erro: " + error.message);
+      } else {
+        document.getElementById('loginView').classList.add('hidden');
+        document.getElementById('dashboardView').classList.remove('hidden');
+        carregarAvaliacoes();
+        carregarProjetosDropdown();
+      }
+    }
+
+    async function sairAdmin() {
+      await supabase.auth.signOut();
+      location.reload();
+    }
+
+    // ----------------------------
+    // GERENCIAMENTO DE AVALIAÇÕES
+    // ----------------------------
+    async function carregarAvaliacoes() {
+      const { data, error } = await supabase.from('reviews').select('*').order('created_at', { ascending: false });
+      const container = document.getElementById('reviewsList');
+      
+      if (error) { container.innerHTML = "Erro ao carregar."; return; }
+      if (data.length === 0) { container.innerHTML = "Nenhuma avaliação encontrada."; return; }
+
+      container.innerHTML = data.map(rev => `
+        <div class="review-item">
+          <div>
+            <strong>Nota: ${rev.rating}/5</strong>
+            <p style="margin: 0.5rem 0 0; color: #ccc;">${rev.comment || 'Sem comentário'}</p>
+          </div>
+          <button class="danger" onclick="deletarAvaliacao(${rev.id})">Apagar</button>
+        </div>
+      `).join('');
+    }
+
+    async function deletarAvaliacao(id) {
+      if(!confirm("Tem certeza que deseja apagar esta avaliação?")) return;
+      await supabase.from('reviews').delete().eq('id', id);
+      carregarAvaliacoes();
+    }
+
+    // ----------------------------
+    // GERENCIAMENTO DE OBRAS/FOTOS
+    // ----------------------------
+    async function criarProjeto() {
+      const name = document.getElementById('projName').value;
+      const desc = document.getElementById('projDesc').value;
+      
+      if(!name) return alert("O nome é obrigatório!");
+
+      const { data, error } = await supabase.from('projects').insert([{ name: name, description: desc }]);
+      
+      if(error) alert("Erro ao criar: " + error.message);
+      else {
+        alert("Obra cadastrada com sucesso!");
+        document.getElementById('projName').value = "";
+        document.getElementById('projDesc').value = "";
+        carregarProjetosDropdown(); // Atualiza a lista de seleção
+      }
+    }
+
+    async function carregarProjetosDropdown() {
+      const { data, error } = await supabase.from('projects').select('id, name').order('id', { ascending: false });
+      const select = document.getElementById('projSelect');
+      if (data) {
+        select.innerHTML = '<option value="">Selecione uma obra...</option>' + 
+          data.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+      }
+    }
+
+    async function fazerUploadFoto() {
+      const projectId = document.getElementById('projSelect').value;
+      const fileInput = document.getElementById('projPhoto');
+      
+      if (!projectId) return alert("Selecione uma obra.");
+      if (fileInput.files.length === 0) return alert("Selecione uma foto.");
+
+      const file = fileInput.files[0];
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random()}.${fileExt}`; // Gera nome único
+      const filePath = `obras/${fileName}`;
+
+      // 1. Upload para o Supabase Storage (Bucket chamado "portfolio")
+      const { error: uploadError } = await supabase.storage.from('portfolio').upload(filePath, file);
+      
+      if (uploadError) return alert("Erro no upload: " + uploadError.message);
+
+      // 2. Obter a URL Pública da Imagem
+      const { data: publicUrlData } = supabase.storage.from('portfolio').getPublicUrl(filePath);
+      const photoUrl = publicUrlData.publicUrl;
+
+      // 3. Salvar no banco (tabela project_photos)
+      const { error: insertError } = await supabase.from('project_photos').insert([
+        { project_id: projectId, photo_url: photoUrl }
+      ]);
+
+      if (insertError) alert("Erro ao vincular foto: " + insertError.message);
+      else {
+        alert("Foto adicionada com sucesso!");
+        fileInput.value = "";
+      }
+    }
+  </script>
+</body>
+</html>
