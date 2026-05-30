@@ -184,6 +184,7 @@ FOR SELECT
 TO authenticated
 USING ((SELECT auth.uid()) = user_id);
 
+-- Admin tem acesso completo aos cadastros de clientes do site.
 CREATE POLICY "Admins can view customers"
 ON public.customers
 FOR SELECT
