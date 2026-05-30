@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cadastro - Edifique Construções</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet" />
+  <style>
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background-color: #141210;
+      color: #f5f5f5;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+    }
+    .container {
+      background-color: #1e1c1a;
+      padding: 2rem;
+      border-radius: 8px;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+    h2 { text-align: center; color: #d4af37; margin-top: 0; }
+    .form-group { margin-bottom: 1.5rem; }
+    label { display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #aaa; }
+    input, select, textarea {
+      width: 100%;
+      padding: 0.8rem;
+      border: 1px solid #333;
+      background: #141210;
+      color: #fff;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+    button {
+      width: 100%;
+      padding: 1rem;
+      background-color: #d4af37;
+      color: #141210;
+      border: none;
+      border-radius: 4px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    button:hover { background-color: #bfa030; }
+    .hidden { display: none; }
+    .alert { padding: 1rem; border-radius: 4px; margin-bottom: 1rem; text-align: center; }
+    .alert-success { background: #28a745; color: #fff; }
+    .alert-error { background: #dc3545; color: #fff; }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div id="messageBox" class="alert hidden"></div>
+
+    <div id="registerSection">
+      <h2>Criar Conta</h2>
+      <div class="form-group">
+        <label for="regName">Nome</label>
+        <input type="text" id="regName" placeholder="Seu nome completo" required />
+      </div>
+      <div class="form-group">
+        <label for="regCpf">CPF</label>
+        <input type="text" id="regCpf" placeholder="000.000.000-00" required />
+      </div>
+      <div class="form-group">
+        <label for="regPhone">Número / WhatsApp</label>
+        <input type="tel" id="regPhone" placeholder="(00) 00000-0000" required />
+      </div>
+      <div class="form-group">
+        <label for="regEmail">E-mail (G-mail, etc.)</label>
+        <input type="email" id="regEmail" placeholder="Seu e-mail" required />
+      </div>
+      <div class="form-group">
+        <label for="regPassword">Senha</label>
+        <input type="password" id="regPassword" placeholder="Crie uma senha" required />
+      </div>
+      <button onclick="realizarCadastro()">Cadastrar</button>
+      <p style="text-align: center; margin-top: 1rem; font-size: 0.9rem;">
+        Já possui conta? <a href="funcionario.html" style="color: #d4af37; text-decoration: none; font-weight: bold;">Fazer Login</a>
+      </p>
+    </div>
+  </div>
+
+  <!-- SUPABASE -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    const SUPABASE_URL = "https://uimjqymytxqvvwrojcgg.supabase.co";
+    const SUPABASE_ANON_KEY = "sb_publishable_k-VnTcGnw9yTPXteKozg3w_z4fi_uf8";
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    function showMessage(msg, isError = false) {
+      const msgBox = document.getElementById('messageBox');
+      msgBox.textContent = msg;
+      msgBox.className = `alert ${isError ? 'alert-error' : 'alert-success'}`;
+      msgBox.classList.remove('hidden');
+      setTimeout(() => msgBox.classList.add('hidden'), 4000);
+    }
+
+    async function realizarCadastro() {
+      const name = document.getElementById('regName').value;
+      const cpf = document.getElementById('regCpf').value;
+      const phone = document.getElementById('regPhone').value;
+      const email = document.getElementById('regEmail').value;
+      const password = document.getElementById('regPassword').value;
+
+      if (!name || !cpf || !phone || !email || !password) {
+        showMessage("Preencha todos os campos!", true);
+        return;
+      }
+
+      const { data, error } = await supabase.auth.signUp({
+        email: email,
+        password: password,
+        options: {
+          data: { name, cpf, phone }
+        }
+      });
+
+      if (error) {
+        showMessage("Erro no cadastro: " + error.message, true);
+      } else {
+        showMessage("Cadastro concluído! Redirecionando...");
+        // Tenta fazer o login automático de forma segura em segundo plano
+        supabase.auth.signInWithPassword({ email, password }).finally(() => {
+          // Força o redirecionamento imediato para o site, não importa o que aconteça
+          window.location.replace('index.html');
+        });
+      }
+    }
+  </script>
+</body>
+</html>

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Área do Funcionário - Edifique Construções</title>
+  <title>Acesso ao Sistema - Edifique Construções</title>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet" />
   <style>
     body {
@@ -61,7 +61,7 @@
 
     <!-- Form de Login -->
     <div id="loginSection">
-      <h2>Login do Funcionário</h2>
+      <h2>Acesso ao Sistema</h2>
       <div class="form-group">
         <label for="email">E-mail</label>
         <input type="email" id="email" placeholder="Seu e-mail" required />
@@ -71,6 +71,9 @@
         <input type="password" id="password" placeholder="Sua senha" required />
       </div>
       <button onclick="realizarLogin()">Entrar</button>
+      <p style="text-align: center; margin-top: 1rem; font-size: 0.9rem;">
+        Não tem uma conta? <a href="cadastro.html" style="color: #d4af37; text-decoration: none; font-weight: bold;">Cadastre-se</a>
+      </p>
     </div>
 
     <!-- Form de Avaliação -->
@@ -102,6 +105,19 @@
     const SUPABASE_ANON_KEY = "sb_publishable_k-VnTcGnw9yTPXteKozg3w_z4fi_uf8";
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+    // Verificar se já está logado ao carregar a página
+    window.addEventListener('load', async () => {
+      const { data } = await supabase.auth.getSession();
+      if (data?.session) {
+        const email = data.session.user.email;
+        if (email === 'admin@edifique.com') {
+          window.location.href = 'admin.html';
+        } else {
+          window.location.href = 'index.html';
+        }
+      }
+    });
+
     function showMessage(msg, isError = false) {
       const msgBox = document.getElementById('messageBox');
       msgBox.textContent = msg;
@@ -119,8 +135,12 @@
       if (error) {
         showMessage("Erro no login: " + error.message, true);
       } else {
-        document.getElementById('loginSection').classList.add('hidden');
-        document.getElementById('reviewSection').classList.remove('hidden');
+        const userEmail = data.user.email;
+        if (userEmail === 'admin@edifique.com') {
+          window.location.href = 'admin.html'; // Redireciona para o painel se for Admin
+        } else {
+          window.location.href = 'index.html'; // Redireciona para o site principal
+        }
       }
     }
 
@@ -144,6 +164,7 @@
       await supabase.auth.signOut();
       location.reload();
     }
+    
   </script>
 </body>
 </html>

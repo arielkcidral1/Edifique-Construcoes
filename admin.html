@@ -44,22 +44,6 @@
 </head>
 <body>
 
-  <!-- LOGIN ADMIN -->
-  <div id="loginView" class="login-container">
-    <div class="box">
-      <h2>Acesso Administrativo</h2>
-      <div class="form-group">
-        <label>E-mail</label>
-        <input type="email" id="adminEmail" placeholder="admin@edifique.com" />
-      </div>
-      <div class="form-group">
-        <label>Senha</label>
-        <input type="password" id="adminPassword" placeholder="******" />
-      </div>
-      <button style="width:100%" onclick="loginAdmin()">Entrar no Painel</button>
-    </div>
-  </div>
-
   <!-- DASHBOARD -->
   <div id="dashboardView" class="dashboard hidden">
     <div class="sidebar">
@@ -118,25 +102,27 @@
     const SUPABASE_ANON_KEY = "sb_publishable_k-VnTcGnw9yTPXteKozg3w_z4fi_uf8";
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+    // Verificar sessão ao carregar a página (Segurança)
+    window.addEventListener('load', async () => {
+      const { data } = await supabase.auth.getSession();
+      if (!data?.session) {
+        window.location.href = 'funcionario.html'; // Se não estiver logado, manda pro login
+      } else {
+        const email = data.session.user.email;
+        if (email !== 'admin@edifique.com') {
+          window.location.href = 'funcionario.html'; // Se não for admin, manda de volta
+        } else {
+          document.getElementById('dashboardView').classList.remove('hidden');
+          carregarAvaliacoes();
+          carregarProjetosDropdown();
+        }
+      }
+    });
+
     // Navegação de abas
     function showTab(tabId) {
       document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
       document.getElementById(tabId).classList.remove('hidden');
-    }
-
-    async function loginAdmin() {
-      const email = document.getElementById('adminEmail').value;
-      const password = document.getElementById('adminPassword').value;
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      
-      if (error) {
-        alert("Erro: " + error.message);
-      } else {
-        document.getElementById('loginView').classList.add('hidden');
-        document.getElementById('dashboardView').classList.remove('hidden');
-        carregarAvaliacoes();
-        carregarProjetosDropdown();
-      }
     }
 
     async function sairAdmin() {
