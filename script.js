@@ -669,7 +669,12 @@ async function createCondominiumDocumentDownloadUrl(doc) {
 
   if (!error && data?.signedUrl) return data.signedUrl;
 
-  console.error("Erro ao gerar link de download do documento:", error);
+  console.error("Erro ao gerar link de download do documento:", {
+    error,
+    documentId: doc.id,
+    condominiumId: doc.condominium_id,
+    filePath: doc.file_path
+  });
   return "";
 }
 

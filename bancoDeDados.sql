@@ -256,6 +256,22 @@ AS $$
   ORDER BY condo_result.assigned_at DESC, condo_result.name ASC;
 $$;
 
+CREATE OR REPLACE FUNCTION private.can_read_condominium_document_storage(object_name TEXT)
+RETURNS BOOLEAN
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.condominium_documents doc
+    JOIN public.customer_condominiums cc ON cc.condominium_id = doc.condominium_id
+    JOIN public.customers c ON c.id = cc.customer_id
+    WHERE doc.file_path = object_name
+      AND c.user_id = (SELECT auth.uid())
+  );
+$$;
+
 DROP FUNCTION IF EXISTS public.admin_list_customers();
 
 CREATE FUNCTION public.admin_list_customers()
@@ -364,6 +380,9 @@ REVOKE ALL ON FUNCTION public.admin_delete_customer(BIGINT) FROM public;
 
 GRANT EXECUTE ON FUNCTION public.upsert_customer_profile(TEXT, TEXT, TEXT, TEXT) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_my_condominiums() TO authenticated;
+GRANT USAGE ON SCHEMA private TO authenticated;
+REVOKE ALL ON FUNCTION private.can_read_condominium_document_storage(TEXT) FROM public;
+GRANT EXECUTE ON FUNCTION private.can_read_condominium_document_storage(TEXT) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_list_customers() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_update_customer(BIGINT, TEXT, TEXT, TEXT, TEXT) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_delete_customer(BIGINT) TO authenticated;
@@ -775,12 +794,5 @@ FOR SELECT
 TO authenticated
 USING (
   bucket_id = 'condominium-documents'
-  AND EXISTS (
-    SELECT 1
-    FROM public.condominium_documents doc
-    JOIN public.customer_condominiums cc ON cc.condominium_id = doc.condominium_id
-    JOIN public.customers c ON c.id = cc.customer_id
-    WHERE doc.file_path = storage.objects.name
-      AND c.user_id = (SELECT auth.uid())
-  )
+  AND private.can_read_condominium_document_storage(storage.objects.name)
 );
