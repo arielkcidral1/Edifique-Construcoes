@@ -688,10 +688,10 @@
       const file = fileInput.files[0];
       const ext = (file.name.split('.').pop() || 'pdf').toLowerCase().replace(/[^a-z0-9]/g, '');
       const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '-');
-      const filePath = `${condominiumId}/${Date.now()}-${safeName || `documento.${ext}`}`;
+      const filePath = `condominium-documents/${condominiumId}/${Date.now()}-${safeName || `documento.${ext}`}`;
 
       const { error: uploadError } = await supabaseClient.storage
-        .from('condominium-documents')
+        .from('portfolio')
         .upload(filePath, file, { contentType: file.type, upsert: false });
 
       if (uploadError) return alert("Erro no upload: " + uploadError.message);
@@ -719,7 +719,7 @@
       const { error } = await supabaseClient.from('condominium_documents').delete().eq('id', docId);
       if (error) return alert("Erro ao apagar documento: " + error.message);
 
-      await supabaseClient.storage.from('condominium-documents').remove([filePath]);
+      await supabaseClient.storage.from('portfolio').remove([filePath]);
       carregarCondominios();
     }
 
@@ -735,7 +735,7 @@
       if (error) return alert("Erro ao apagar condominio: " + error.message);
 
       const paths = (docs || []).map(doc => doc.file_path).filter(Boolean);
-      if (paths.length) await supabaseClient.storage.from('condominium-documents').remove(paths);
+      if (paths.length) await supabaseClient.storage.from('portfolio').remove(paths);
       carregarCondominios();
       carregarProjetosDropdown();
     }

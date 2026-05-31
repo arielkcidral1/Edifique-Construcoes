@@ -11,7 +11,8 @@ const db = window.supabase
   : null;
 
 const ADMIN_EMAIL = "admin@edifique.com";
-const CONDOMINIUM_DOCUMENTS_BUCKET = "condominium-documents";
+const CONDOMINIUM_DOCUMENTS_BUCKET = "portfolio";
+const CONDOMINIUM_DOCUMENTS_FOLDER = "condominium-documents";
 
 let clienteLogado = null;
 let adminLogado = false;
@@ -665,11 +666,17 @@ async function createCondominiumDocumentDownloadUrl(doc) {
   const rawPath = String(doc.file_path || "").trim();
   const normalizedPath = rawPath
     .replace(/^\/+/, "")
+    .replace(/^portfolio\/+/, "")
     .replace(/^condominium-documents\/+/, "");
+  const legacyPath = normalizedPath;
+  const portfolioPath = normalizedPath.startsWith(`${CONDOMINIUM_DOCUMENTS_FOLDER}/`)
+    ? normalizedPath
+    : `${CONDOMINIUM_DOCUMENTS_FOLDER}/${normalizedPath}`;
   const filePathCandidates = [
+    portfolioPath,
     rawPath,
-    normalizedPath,
-    doc.condominium_id && fileName ? `${doc.condominium_id}/${fileName}` : ""
+    legacyPath,
+    doc.condominium_id && fileName ? `${CONDOMINIUM_DOCUMENTS_FOLDER}/${doc.condominium_id}/${fileName}` : ""
   ].filter(Boolean);
   const uniquePaths = [...new Set(filePathCandidates)];
   const errors = [];
