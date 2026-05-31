@@ -661,19 +661,35 @@ async function createCondominiumDocumentDownloadUrl(doc) {
   if (!db || !doc?.file_path) return "";
 
   const fileName = doc.file_name || doc.title || "documento";
-  const { data, error } = await db.storage
-    .from("condominium-documents")
-    .createSignedUrl(doc.file_path, 60 * 15, {
-      download: fileName
-    });
+  const rawPath = String(doc.file_path || "").trim();
+  const normalizedPath = rawPath
+    .replace(/^\/+/, "")
+    .replace(/^condominium-documents\/+/, "");
+  const filePathCandidates = [
+    rawPath,
+    normalizedPath,
+    doc.condominium_id && fileName ? `${doc.condominium_id}/${fileName}` : ""
+  ].filter(Boolean);
+  const uniquePaths = [...new Set(filePathCandidates)];
+  const errors = [];
 
-  if (!error && data?.signedUrl) return data.signedUrl;
+  for (const filePath of uniquePaths) {
+    const { data, error } = await db.storage
+      .from("condominium-documents")
+      .createSignedUrl(filePath, 60 * 15, {
+        download: fileName
+      });
+
+    if (!error && data?.signedUrl) return data.signedUrl;
+    errors.push({ filePath, error });
+  }
 
   console.error("Erro ao gerar link de download do documento:", {
-    error,
+    errors,
     documentId: doc.id,
     condominiumId: doc.condominium_id,
-    filePath: doc.file_path
+    filePath: doc.file_path,
+    attemptedPaths: uniquePaths
   });
   return "";
 }
@@ -1150,7 +1166,7 @@ async function renderMyCondominiumsPage() {
         .order("id", { ascending: false }),
       db
         .from("condominium_documents")
-        .select("id, title, document_type, file_path, file_name, uploaded_at")
+        .select("id, condominium_id, title, document_type, file_path, file_name, uploaded_at")
         .eq("condominium_id", condo.id)
         .order("uploaded_at", { ascending: false })
     ]);

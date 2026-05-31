@@ -717,6 +717,7 @@ DROP POLICY IF EXISTS "Customers can update own avatars" ON storage.objects;
 DROP POLICY IF EXISTS "Customers can delete own avatars" ON storage.objects;
 DROP POLICY IF EXISTS "Admins have full access to condominium documents storage" ON storage.objects;
 DROP POLICY IF EXISTS "Assigned customers can read condominium documents storage" ON storage.objects;
+DROP POLICY IF EXISTS "Authenticated users can sign condominium documents downloads" ON storage.objects;
 
 CREATE POLICY "Admins have full access to portfolio photos"
 ON storage.objects
@@ -788,11 +789,10 @@ TO authenticated
 USING (bucket_id = 'condominium-documents' AND ((SELECT auth.jwt()) ->> 'email') = 'admin@edifique.com')
 WITH CHECK (bucket_id = 'condominium-documents' AND ((SELECT auth.jwt()) ->> 'email') = 'admin@edifique.com');
 
-CREATE POLICY "Assigned customers can read condominium documents storage"
+CREATE POLICY "Authenticated users can sign condominium documents downloads"
 ON storage.objects
 FOR SELECT
 TO authenticated
 USING (
   bucket_id = 'condominium-documents'
-  AND private.can_read_condominium_document_storage(storage.objects.name)
 );
