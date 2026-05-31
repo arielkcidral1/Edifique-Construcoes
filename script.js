@@ -202,6 +202,43 @@ function closeAccountPanel() {
   panel.setAttribute("aria-hidden", "true");
 }
 
+function clearSupabaseAuthStorage() {
+  [window.localStorage, window.sessionStorage].forEach((storage) => {
+    try {
+      Object.keys(storage)
+        .filter((key) => key.startsWith("sb-") || key === "supabase.auth.token")
+        .forEach((key) => storage.removeItem(key));
+    } catch (error) {
+      console.warn("Nao foi possivel limpar o cache de autenticacao:", error);
+    }
+  });
+}
+
+async function signOutClientSession() {
+  try {
+    if (db) {
+      await Promise.race([
+        db.auth.signOut(),
+        new Promise((_, reject) => {
+          setTimeout(() => reject(new Error("Tempo esgotado ao sair.")), 4000);
+        })
+      ]);
+    }
+  } catch (err) {
+    console.warn("Erro ao processar logout no Supabase:", err);
+  } finally {
+    clearSupabaseAuthStorage();
+    clienteLogado = null;
+    try {
+      updateClientSessionUI();
+      await updateCondominiumsMenu();
+    } catch (error) {
+      console.warn("Nao foi possivel atualizar a interface apos sair:", error);
+    }
+    closeAccountPanel();
+  }
+}
+
 function buildAccountPanel() {
   const panel = document.createElement("div");
   panel.id = "accountPanel";
@@ -233,7 +270,7 @@ function buildAccountPanel() {
             Minhas Avaliações
           </button>
           <div class="account-nav-spacer"></div>
-          <button class="account-logout-btn" id="accountLogoutBtn">
+          <button class="account-logout-btn" id="accountLogoutBtn" type="button">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
             Sair da conta
           </button>
@@ -244,7 +281,7 @@ function buildAccountPanel() {
       <main class="account-main">
         <div class="account-main-header">
           <h2 id="accountPanelTitle">Configurações da Conta</h2>
-          <button class="account-close-btn" id="accountPanelClose" aria-label="Fechar painel">
+          <button class="account-close-btn" id="accountPanelClose" type="button" aria-label="Fechar painel">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
         </div>
@@ -314,7 +351,7 @@ function buildAccountPanel() {
           <div class="account-danger-zone">
             <div class="account-section-label" style="color:#ff8a78;">Zona de perigo</div>
             <p class="account-section-desc">Esta ação é permanente e não pode ser desfeita.</p>
-            <button class="account-btn-danger" id="accountDeleteBtn">Excluir minha conta</button>
+            <button class="account-btn-danger" id="accountDeleteBtn" type="button">Excluir minha conta</button>
           </div>
         </div>
 
@@ -352,41 +389,17 @@ function buildAccountPanel() {
 
   // Logout
   panel.querySelector("#accountLogoutBtn").addEventListener("click", async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
     const btn = e.currentTarget;
-    const originalHtml = btn.innerHTML;
+    if (btn.disabled) return;
+    btn.disabled = true;
     btn.style.opacity = "0.5";
     btn.style.pointerEvents = "none";
     btn.innerHTML = "Saindo...";
 
-    try {
-      if (db) await db.auth.signOut();
-    } catch (err) {
-      console.warn("Erro ao processar logout no Supabase:", err);
-    } finally {
-      // Força a limpeza do cache local para evitar que a sessão fique presa
-      [localStorage, sessionStorage].forEach((s) => {
-        try { Object.keys(s).filter(k => k.startsWith("sb-")).forEach(k => s.removeItem(k)); } catch(e) {}
-      });
-      // Limpeza segura do cache para evitar bloqueios de segurança do navegador
-      try {
-        if (window.localStorage) Object.keys(window.localStorage).filter(k => k.startsWith("sb-")).forEach(k => window.localStorage.removeItem(k));
-      } catch(e) {}
-      try {
-        if (window.sessionStorage) Object.keys(window.sessionStorage).filter(k => k.startsWith("sb-")).forEach(k => window.sessionStorage.removeItem(k));
-      } catch(e) {}
-      
-      clienteLogado = null;
-      updateClientSessionUI();
-      await updateCondominiumsMenu();
-      if (typeof renderMyCondominiumsPage === 'function') await renderMyCondominiumsPage();
-      closeAccountPanel();
-      window.location.reload();
-
-      // Reseta o botão para caso o painel seja aberto novamente
-      btn.style.opacity = "1";
-      btn.style.pointerEvents = "auto";
-      btn.innerHTML = originalHtml;
-    }
+    await signOutClientSession();
+    window.location.replace("index.html");
   });
 
   // CPF / Phone masks
