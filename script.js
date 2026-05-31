@@ -98,7 +98,7 @@ function clearSupabaseAuthCache() {
 
 async function signOutClient() {
   if (db) {
-    const { error } = await db.auth.signOut();
+    const { error } = await db.auth.signOut({ scope: "local" });
     if (error) console.warn("Nao foi possivel encerrar a sessao no servidor:", error.message);
   }
 
