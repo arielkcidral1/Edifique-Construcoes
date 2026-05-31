@@ -1472,7 +1472,7 @@ document.getElementById("formClienteCadastro")?.addEventListener("submit", async
   } finally {
     if (submitButton) {
       submitButton.disabled = false;
-      submitButton.textContent = "Entrar como cliente";
+      submitButton.textContent = "Cadastrar e entrar";
     }
   }
 });
@@ -1527,11 +1527,6 @@ document.getElementById("reviewForm")?.addEventListener("submit", async function
   } catch (error) {
     console.error("Erro ao enviar avaliação:", error);
     errorBox.textContent = "Não foi possível enviar sua avaliação agora.";
-  } finally {
-    if (submitButton) {
-      submitButton.disabled = false;
-      submitButton.textContent = "Cadastrar e entrar";
-    }
   }
 });
 
