@@ -282,11 +282,91 @@
           rgba(120,144,155,.05) 0px, rgba(120,144,155,.05) 1px,
           transparent 1px, transparent 16px
         );
+      overflow: hidden;
     }
     .about-accent {
       position: absolute; bottom: -1.5rem; right: -1.5rem;
       width: 60%; height: 60%;
       border: 1px solid var(--rust); z-index: -1;
+    }
+    .about-accent span {
+      position: absolute;
+      background: rgba(192,142,98,.58);
+    }
+    .about-accent span:first-child {
+      top: 18%;
+      right: -1px;
+      width: 34%;
+      height: 1px;
+    }
+    .about-accent span:last-child {
+      right: 18%;
+      bottom: -1px;
+      width: 1px;
+      height: 34%;
+    }
+    .about-plan {
+      position: absolute;
+      inset: 17% 15% 24% 16%;
+      border-left: 1px solid rgba(214,200,173,.2);
+      border-bottom: 1px solid rgba(214,200,173,.16);
+    }
+    .plan-line,
+    .plan-node {
+      position: absolute;
+      display: block;
+    }
+    .plan-line {
+      background: rgba(214,200,173,.28);
+    }
+    .plan-line-top {
+      top: 0;
+      left: 0;
+      width: 68%;
+      height: 1px;
+    }
+    .plan-line-right {
+      top: 0;
+      right: 18%;
+      width: 1px;
+      height: 62%;
+    }
+    .plan-line-bottom {
+      right: 18%;
+      bottom: 24%;
+      width: 46%;
+      height: 1px;
+    }
+    .plan-node {
+      width: 8px;
+      height: 8px;
+      border: 1px solid rgba(192,142,98,.75);
+      border-radius: 50%;
+      background: rgba(15,30,37,.86);
+      box-shadow: 0 0 0 6px rgba(192,142,98,.05);
+    }
+    .plan-node-a { top: -4px; left: -4px; }
+    .plan-node-b { top: -4px; right: calc(18% - 4px); }
+    .plan-node-c { right: calc(18% - 4px); bottom: calc(24% - 4px); }
+    .about-spec {
+      position: absolute;
+      left: 1.4rem;
+      right: 1.4rem;
+      bottom: 1.4rem;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: .6rem;
+    }
+    .about-spec span {
+      min-width: 0;
+      padding-top: .55rem;
+      border-top: 1px solid rgba(120,144,155,.24);
+      color: rgba(231,236,236,.5);
+      font-size: .58rem;
+      font-weight: 700;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      white-space: nowrap;
     }
     .about-badge {
       position: absolute; bottom: 2.5rem; left: -2.5rem;
