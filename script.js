@@ -50,18 +50,6 @@ function formatPhone(value) {
     .replace(/(\d{5})(\d)/, "$1-$2");
 }
 
-function formatReviewDate(value) {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-
-  return date.toLocaleDateString("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric"
-  });
-}
-
 function getFirstName(name) {
   return (name || "Cliente").trim().split(" ")[0] || "Cliente";
 }
@@ -84,29 +72,6 @@ function renderAvatarContent(name, avatarUrl = "", className = "") {
   return escapeHtml(getInitials(name));
 }
 
-function clearSupabaseAuthCache() {
-  [localStorage, sessionStorage].forEach((storage) => {
-    try {
-      Object.keys(storage)
-        .filter((key) => key.startsWith("sb-") || key.includes("supabase"))
-        .forEach((key) => storage.removeItem(key));
-    } catch {
-      // Storage can be unavailable in private or restricted browser modes.
-    }
-  });
-}
-
-async function signOutClient() {
-  if (db) {
-    const { error } = await db.auth.signOut({ scope: "local" });
-    if (error) console.warn("Nao foi possivel encerrar a sessao no servidor:", error.message);
-  }
-
-  clearSupabaseAuthCache();
-  clienteLogado = null;
-  updateClientSessionUI();
-}
-
 function updateClientSessionUI() {
   const btn = document.getElementById("clientSessionBtn");
   if (!btn) return;
@@ -120,24 +85,6 @@ function updateClientSessionUI() {
     document.body.classList.remove("client-logged-in");
     if (label) label.textContent = "Entrar Cliente";
     btn.title = "Conta do cliente";
-  }
-  updateCondominiumsLink();
-}
-
-async function updateCondominiumsLink() {
-  const links = document.querySelectorAll("[data-condominiums-link]");
-  if (!links.length) return;
-
-  links.forEach((link) => { link.hidden = true; });
-  if (!db || !clienteLogado?.id) return;
-
-  const { count, error } = await db
-    .from("customer_condominiums")
-    .select("id", { count: "exact", head: true })
-    .eq("customer_id", clienteLogado.id);
-
-  if (!error && count > 0) {
-    links.forEach((link) => { link.hidden = false; });
   }
 }
 
@@ -250,12 +197,12 @@ function buildAccountPanel() {
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
             Minhas Avaliações
           </button>
+          <div class="account-nav-spacer"></div>
+          <button class="account-logout-btn" id="accountLogoutBtn">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            Sair da conta
+          </button>
         </nav>
-        <div style="flex: 1;"></div>
-        <button class="account-logout-btn" id="accountLogoutBtn" type="button">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-          Sair da conta
-        </button>
       </aside>
 
       <!-- MAIN CONTENT -->
@@ -332,7 +279,7 @@ function buildAccountPanel() {
           <div class="account-danger-zone">
             <div class="account-section-label" style="color:#ff8a78;">Zona de perigo</div>
             <p class="account-section-desc">Esta ação é permanente e não pode ser desfeita.</p>
-            <button class="account-btn-danger" id="accountDeleteBtn" type="button">Excluir minha conta</button>
+            <button class="account-btn-danger" id="accountDeleteBtn">Excluir minha conta</button>
           </div>
         </div>
 
@@ -370,16 +317,11 @@ function buildAccountPanel() {
   });
 
   // Logout
-  panel.querySelector("#accountLogoutBtn").addEventListener("click", async (event) => {
-    const button = event.currentTarget;
-    button.disabled = true;
-    try {
-      await signOutClient();
-      closeAccountPanel();
-      await renderMyCondominiumsPage();
-    } finally {
-      button.disabled = false;
-    }
+  panel.querySelector("#accountLogoutBtn").addEventListener("click", async () => {
+    await db.auth.signOut();
+    clienteLogado = null;
+    updateClientSessionUI();
+    closeAccountPanel();
   });
 
   // CPF / Phone masks
@@ -509,7 +451,9 @@ function buildAccountPanel() {
   panel.querySelector("#accountDeleteBtn").addEventListener("click", async () => {
     if (!confirm("Tem certeza que deseja excluir sua conta? Esta ação é permanente.")) return;
     // sign out first – server-side deletion requires service role; for now we sign out and inform
-    await signOutClient();
+    await db.auth.signOut();
+    clienteLogado = null;
+    updateClientSessionUI();
     closeAccountPanel();
     alert("Sua solicitação de exclusão foi registrada. Entraremos em contato para concluir o processo.");
   });
@@ -578,7 +522,7 @@ async function loadAccountReviews() {
           <span class="account-review-project">${escapeHtml(rev.projects?.name || "Edifique Construções")}</span>
         </div>
         <p class="account-review-text">${escapeHtml(rev.comment || "")}</p>
-        <span class="account-review-date">${formatReviewDate(rev.created_at)}</span>
+        <span class="account-review-date">${new Date(rev.created_at).toLocaleDateString("pt-BR", { day:"2-digit", month:"long", year:"numeric" })}</span>
       </div>
     `).join("");
   } catch (err) {
@@ -721,7 +665,6 @@ async function fetchTestimonialsData() {
       .select(`
         rating,
         comment,
-        created_at,
         reviewer_name,
         reviewer_avatar_url,
         projects (
@@ -741,7 +684,6 @@ async function fetchTestimonialsData() {
         avatar: getInitials(nome),
         avatarUrl: avaliacao.reviewer_avatar_url || "",
         name: nome,
-        date: formatReviewDate(avaliacao.created_at),
         role: avaliacao.projects?.name
           ? `Projeto: ${avaliacao.projects.name}`
           : "Cliente Edifique"
@@ -853,123 +795,6 @@ function setupProjectAlbums() {
   });
 }
 
-async function renderMyCondominiumsPage() {
-  const container = document.querySelector("[data-my-condominiums]");
-  if (!container) return;
-
-  container.innerHTML = '<p class="projects-loading">Carregando seus condominios...</p>';
-
-  if (!clienteLogado?.id) {
-    container.innerHTML = '<p class="projects-empty">Entre com sua conta para acessar seus condominios.</p>';
-    showClientAuth("login");
-    return;
-  }
-
-  const { data: links, error } = await db
-    .from("customer_condominiums")
-    .select(`
-      condominiums (
-        id,
-        name,
-        address,
-        notes
-      )
-    `)
-    .eq("customer_id", clienteLogado.id);
-
-  if (error) {
-    container.innerHTML = '<p class="projects-empty">Nao foi possivel carregar seus condominios.</p>';
-    return;
-  }
-
-  const condominiums = (links || [])
-    .map((link) => link.condominiums)
-    .filter(Boolean);
-
-  if (!condominiums.length) {
-    container.innerHTML = '<p class="projects-empty">Nenhum condominio foi atribuido ao seu login ainda.</p>';
-    return;
-  }
-
-  const rendered = await Promise.all(condominiums.map(async (condo) => {
-    const [{ data: projects }, { data: documents }] = await Promise.all([
-      db
-        .from("projects")
-        .select(`
-          id,
-          name,
-          description,
-          project_photos (
-            photo_url
-          )
-        `)
-        .eq("condominium_id", condo.id)
-        .order("id", { ascending: false }),
-      db
-        .from("condominium_documents")
-        .select("id, title, document_type, file_path, file_name, uploaded_at")
-        .eq("condominium_id", condo.id)
-        .order("uploaded_at", { ascending: false })
-    ]);
-
-    const projectHtml = (projects || []).length
-      ? (projects || []).map((project, index) => {
-          const photos = (project.project_photos || []).map((photo) => photo.photo_url).filter(Boolean);
-          return `
-            <article class="my-condo-project" data-project-index="${index}">
-              <div class="my-condo-project-media ${photos[0] ? "" : `p${(index % 5) + 1}`}" ${photos[0] ? `style="background-image:url('${photos[0]}')"` : ""}></div>
-              <div>
-                <span>${photos.length === 1 ? "1 foto" : `${photos.length} fotos`}</span>
-                <h3>${escapeHtml(project.name)}</h3>
-                <p>${escapeHtml(project.description || "Obra do condominio")}</p>
-              </div>
-            </article>
-          `;
-        }).join("")
-      : '<p class="my-condo-empty">Nenhuma obra vinculada a este condominio.</p>';
-
-    const docHtml = (await Promise.all((documents || []).map(async (doc) => {
-      const { data } = await db.storage
-        .from("condominium-documents")
-        .createSignedUrl(doc.file_path, 60 * 15);
-
-      return `
-        <article class="my-condo-doc">
-          <span>${escapeHtml(doc.document_type)}</span>
-          <h3>${escapeHtml(doc.title)}</h3>
-          <p>${escapeHtml(doc.file_name || "Documento")}</p>
-          ${data?.signedUrl ? `<a class="btn-outline" href="${data.signedUrl}" target="_blank" rel="noopener">Abrir documento</a>` : '<p class="my-condo-empty">Arquivo indisponivel.</p>'}
-        </article>
-      `;
-    }))).join("") || '<p class="my-condo-empty">Nenhum laudo, RT ou documento registrado.</p>';
-
-    return `
-      <section class="my-condo-block reveal">
-        <div class="my-condo-head">
-          <div>
-            <div class="section-label">Condominio</div>
-            <h2 class="section-title">${escapeHtml(condo.name)}</h2>
-            <p>${escapeHtml(condo.address || "Endereco nao informado")}</p>
-          </div>
-        </div>
-        <div class="my-condo-columns">
-          <div>
-            <h3 class="my-condo-section-title">Obras</h3>
-            <div class="my-condo-list">${projectHtml}</div>
-          </div>
-          <div>
-            <h3 class="my-condo-section-title">Documentos</h3>
-            <div class="my-condo-list">${docHtml}</div>
-          </div>
-        </div>
-      </section>
-    `;
-  }));
-
-  container.innerHTML = rendered.join("");
-  setupRevealAnimation();
-}
-
 function openProjectAlbum(projectIndex, photoIndex = 0) {
   const project = projectAlbums[projectIndex];
   if (!project?.photos?.length) return;
@@ -1075,8 +900,6 @@ function renderTestimonials(data) {
         <div class="testimonial-stars">
           ${"★".repeat(item.stars)}${"☆".repeat(5 - item.stars)}
         </div>
-
-        ${item.date ? `<div class="testimonial-date">${escapeHtml(item.date)}</div>` : ""}
 
         <p class="testimonial-text">
           ${escapeHtml(item.text)}
@@ -1213,8 +1036,6 @@ async function init() {
 
     renderProjectsPage(portfolioData);
 
-    await renderMyCondominiumsPage();
-
     const testimonialsData =
       document.querySelector(".testimonials-grid")
         ? await fetchTestimonialsData()
@@ -1341,12 +1162,13 @@ document.getElementById("formClienteLogin")?.addEventListener("submit", async fu
 
     await loadClientProfile();
     if (!clienteLogado?.id) {
-      await signOutClient();
+      await db.auth.signOut();
+      clienteLogado = null;
+      updateClientSessionUI();
       errorBox.textContent = "Cadastro de cliente nÃ£o encontrado. Faça seu cadastro antes de entrar.";
       return;
     }
     closeClientAuth();
-    await renderMyCondominiumsPage();
   } catch (error) {
     console.error("Erro no login do cliente:", error);
     errorBox.textContent = "Não foi possível entrar agora.";
@@ -1410,7 +1232,6 @@ document.getElementById("formClienteCadastro")?.addEventListener("submit", async
     await loadClientProfile();
     this.reset();
     closeClientAuth();
-    await renderMyCondominiumsPage();
   } catch (error) {
     console.error("Erro no cadastro do cliente:", error);
     errorBox.textContent = "Não foi possível cadastrar agora.";
@@ -1471,8 +1292,7 @@ document.getElementById("reviewForm")?.addEventListener("submit", async function
 });
 
 if (db) {
-  db.auth.onAuthStateChange(async () => {
-    await loadClientProfile();
-    await renderMyCondominiumsPage();
+  db.auth.onAuthStateChange(() => {
+    loadClientProfile();
   });
 }

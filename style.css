@@ -666,90 +666,6 @@
     .projects-loading[hidden],
     .projects-empty[hidden] { display: none; }
 
-    .my-condo-block {
-      padding: 2rem;
-      border: 1px solid rgba(120,144,155,.16);
-      background: var(--charcoal);
-      margin-bottom: 1.5rem;
-    }
-    .my-condo-head {
-      display: flex;
-      justify-content: space-between;
-      gap: 1rem;
-      margin-bottom: 1.5rem;
-    }
-    .my-condo-head p {
-      color: var(--cream);
-      opacity: .72;
-      margin-top: .4rem;
-    }
-    .my-condo-columns {
-      display: grid;
-      grid-template-columns: minmax(0, 1.2fr) minmax(280px, .8fr);
-      gap: 1.2rem;
-    }
-    .my-condo-section-title {
-      margin: 0 0 .85rem;
-      color: var(--bone);
-      font-size: .9rem;
-      letter-spacing: .12em;
-      text-transform: uppercase;
-    }
-    .my-condo-list {
-      display: grid;
-      gap: .85rem;
-    }
-    .my-condo-project,
-    .my-condo-doc {
-      display: grid;
-      grid-template-columns: 120px minmax(0, 1fr);
-      gap: 1rem;
-      padding: .9rem;
-      border: 1px solid rgba(120,144,155,.14);
-      background: var(--dark);
-    }
-    .my-condo-project-media {
-      min-height: 96px;
-      background-size: cover;
-      background-position: center;
-      background-color: rgba(214, 200, 173, .08);
-    }
-    .my-condo-project span,
-    .my-condo-doc span {
-      display: inline-flex;
-      margin-bottom: .35rem;
-      color: var(--gold);
-      font-size: .68rem;
-      font-weight: 800;
-      letter-spacing: .12em;
-      text-transform: uppercase;
-    }
-    .my-condo-project h3,
-    .my-condo-doc h3 {
-      margin: 0 0 .35rem;
-      color: var(--bone);
-      font-size: 1rem;
-    }
-    .my-condo-project p,
-    .my-condo-doc p,
-    .my-condo-empty {
-      margin: 0;
-      color: var(--cream);
-      opacity: .68;
-      line-height: 1.55;
-      font-size: .9rem;
-    }
-    .my-condo-doc {
-      grid-template-columns: 1fr;
-    }
-    .my-condo-doc .btn-outline {
-      width: fit-content;
-      min-height: 38px;
-      padding: .55rem .9rem;
-      margin-top: .4rem;
-      font-size: .7rem;
-    }
-
     /* ── TESTIMONIALS ── */
     #depoimentos {
       background: var(--dark); text-align: center; padding: 7rem 4rem;
@@ -788,14 +704,7 @@
       font-family: 'Cormorant Garamond', serif;
       font-size: 6rem; color: rgba(192,142,98,.14); line-height: 1;
     }
-    .testimonial-stars { color: var(--gold); font-size: .9rem; margin-bottom: .45rem; }
-    .testimonial-date {
-      color: var(--mid);
-      font-size: .72rem;
-      font-weight: 800;
-      letter-spacing: .08em;
-      margin-bottom: 1.2rem;
-    }
+    .testimonial-stars { color: var(--gold); font-size: .9rem; margin-bottom: 1.2rem; }
     .testimonial-text {
       font-size: .9rem; line-height: 1.75; color: var(--cream);
       opacity: .65; font-weight: 300; margin-bottom: 1.6rem;
@@ -1078,10 +987,6 @@
       .portfolio-item:not(:first-child) { aspect-ratio: 4/3; }
       .projects-page-grid { grid-template-columns: 1fr; }
       .projects-list-header { align-items: flex-start; flex-direction: column; }
-      .my-condo-block { padding: 1.25rem; }
-      .my-condo-columns { grid-template-columns: 1fr; }
-      .my-condo-project { grid-template-columns: 1fr; }
-      .my-condo-project-media { min-height: 160px; }
       .project-album-modal { padding: 1rem; }
       .album-title { font-size: 1.8rem; }
       .album-controls button { padding: .65rem .75rem; }
@@ -1380,6 +1285,10 @@
   background: rgba(255, 138, 120, .12);
   color: #ff8a78;
   border-color: rgba(255, 138, 120, .44);
+}
+
+.account-nav-spacer {
+  flex: 1;
 }
 
 /* ── MAIN CONTENT ── */
@@ -1787,19 +1696,25 @@
   }
   .account-nav::-webkit-scrollbar { display: none; }
 
-  .account-nav-item {
+  .account-nav-item,
+  .account-logout-btn {
     flex-direction: column;
     gap: .22rem;
     font-size: .64rem;
     padding: .5rem .65rem;
     white-space: nowrap;
     min-width: fit-content;
+    width: auto;
     overflow: visible;
     text-overflow: unset;
     border-radius: 6px;
   }
 
   .account-logout-btn {
+    margin-top: 0;
+  }
+
+  .account-nav-spacer {
     display: none;
   }
 
