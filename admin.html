@@ -755,7 +755,13 @@
         return;
       }
 
-      container.innerHTML = data.map((cliente) => `
+      container.innerHTML = data.map((cliente) => {
+        const isAdminUser = (cliente.email || "").toLowerCase() === "admin@edifique.com";
+        const deleteAction = isAdminUser
+          ? '<span class="muted">Conta administrativa protegida</span>'
+          : '<button class="danger" onclick="deletarCliente(' + cliente.id + ')">Apagar cadastro</button>';
+
+        return `
         <div class="client-item" id="cliente-${cliente.id}">
           <div class="client-item-head">
             <div>
@@ -766,7 +772,7 @@
                 <div>WhatsApp: ${escapeHtml(cliente.phone || "Não informado")}</div>
               </div>
             </div>
-            <button class="danger" onclick="deletarCliente(${cliente.id})">Apagar cadastro</button>
+            ${deleteAction}
           </div>
           <div class="client-edit-grid">
             <div class="form-group">
@@ -788,7 +794,8 @@
           </div>
           <button onclick="salvarCliente(${cliente.id})">Salvar alterações</button>
         </div>
-      `).join('');
+      `;
+      }).join('');
     }
 
     async function salvarCliente(id) {

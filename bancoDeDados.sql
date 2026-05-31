@@ -289,8 +289,18 @@ BEGIN
     RAISE EXCEPTION 'Acesso negado.' USING ERRCODE = '42501';
   END IF;
 
+  IF EXISTS (
+    SELECT 1
+    FROM public.customers
+    WHERE id = customer_id_input
+      AND lower(email) = 'admin@edifique.com'
+  ) THEN
+    RAISE EXCEPTION 'O usuario administrador nao pode ser apagado.' USING ERRCODE = '42501';
+  END IF;
+
   DELETE FROM public.customers
-  WHERE id = customer_id_input;
+  WHERE id = customer_id_input
+    AND lower(email) <> 'admin@edifique.com';
 END;
 $$;
 
