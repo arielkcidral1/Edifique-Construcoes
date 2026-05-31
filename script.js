@@ -566,10 +566,7 @@ async function loadClientProfile() {
     .eq("user_id", user.id)
     .maybeSingle();
 
-  clienteLogado = data || {
-    name: user.user_metadata?.name || user.email,
-    email: user.email
-  };
+  clienteLogado = data || null;
   updateClientSessionUI();
 }
 
@@ -1164,13 +1161,13 @@ document.getElementById("formClienteLogin")?.addEventListener("submit", async fu
     }
 
     await loadClientProfile();
-    await ensureCustomerProfile({
-      name: clienteLogado?.name || email,
-      email,
-      cpf: clienteLogado?.cpf || "",
-      phone: clienteLogado?.phone || ""
-    });
-    await loadClientProfile();
+    if (!clienteLogado?.id) {
+      await db.auth.signOut();
+      clienteLogado = null;
+      updateClientSessionUI();
+      errorBox.textContent = "Cadastro de cliente nÃ£o encontrado. Faça seu cadastro antes de entrar.";
+      return;
+    }
     closeClientAuth();
   } catch (error) {
     console.error("Erro no login do cliente:", error);
