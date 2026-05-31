@@ -1288,10 +1288,6 @@
   border-color: rgba(255, 138, 120, .44);
 }
 
-.account-nav-spacer {
-  flex: 1;
-}
-
 /* ── MAIN CONTENT ── */
 .account-main {
   flex: 1;
@@ -1697,25 +1693,19 @@
   }
   .account-nav::-webkit-scrollbar { display: none; }
 
-  .account-nav-item,
-  .account-logout-btn {
+  .account-nav-item {
     flex-direction: column;
     gap: .22rem;
     font-size: .64rem;
     padding: .5rem .65rem;
     white-space: nowrap;
     min-width: fit-content;
-    width: auto;
     overflow: visible;
     text-overflow: unset;
     border-radius: 6px;
   }
 
   .account-logout-btn {
-    margin-top: 0;
-  }
-
-  .account-nav-spacer {
     display: none;
   }
 
