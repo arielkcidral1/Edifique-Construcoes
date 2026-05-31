@@ -916,11 +916,12 @@ if (statsStrip) statsIO.observe(statsStrip);
 // NAV AO ROLAR
 // ===============================
 const nav =
-  document.querySelector("nav");
+  document.querySelector(".site-nav");
 
 window.addEventListener(
   "scroll",
   () => {
+    if (!nav) return;
     if (window.innerWidth > 900) {
       nav.style.background = ""; // Mantém o estilo CSS fixo no topo do desktop
     } else {
