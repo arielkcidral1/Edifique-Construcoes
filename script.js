@@ -181,6 +181,12 @@ function closeReviewForm() {
   overlay.setAttribute("aria-hidden", "true");
 }
 
+function runInBackground(task, label) {
+  Promise.resolve()
+    .then(task)
+    .catch((error) => console.warn(label, error));
+}
+
 // ===============================
 // PAINEL DE CONTA DO CLIENTE
 // ===============================
@@ -231,7 +237,7 @@ async function signOutClientSession() {
     clienteLogado = null;
     try {
       updateClientSessionUI();
-      await updateCondominiumsMenu();
+      runInBackground(updateCondominiumsMenu, "Nao foi possivel atualizar o menu apos sair:");
     } catch (error) {
       console.warn("Nao foi possivel atualizar a interface apos sair:", error);
     }
@@ -546,7 +552,7 @@ function buildAccountPanel() {
       
       clienteLogado = null;
       updateClientSessionUI();
-      await updateCondominiumsMenu();
+      runInBackground(updateCondominiumsMenu, "Nao foi possivel atualizar o menu apos exclusao:");
       closeAccountPanel();
       alert("Sua solicitação de exclusão foi registrada. Entraremos em contato para concluir o processo.");
       window.location.replace("index.html");
@@ -645,7 +651,7 @@ async function loadClientProfile() {
     adminLogado = false;
     clienteLogado = null;
     updateClientSessionUI();
-    await updateCondominiumsMenu();
+    runInBackground(updateCondominiumsMenu, "Nao foi possivel atualizar o menu de condominios:");
     return;
   }
 
@@ -656,7 +662,7 @@ async function loadClientProfile() {
     adminLogado = false;
     clienteLogado = null;
     updateClientSessionUI();
-    await updateCondominiumsMenu();
+    runInBackground(updateCondominiumsMenu, "Nao foi possivel atualizar o menu de condominios:");
     return;
   }
 
@@ -666,7 +672,7 @@ async function loadClientProfile() {
     closeAccountPanel();
     closeClientAuth();
     updateClientSessionUI();
-    await updateCondominiumsMenu();
+    runInBackground(updateCondominiumsMenu, "Nao foi possivel atualizar o menu de condominios:");
     return;
   }
 
@@ -697,7 +703,7 @@ async function loadClientProfile() {
 
   clienteLogado = data || null;
   updateClientSessionUI();
-  await updateCondominiumsMenu();
+  runInBackground(updateCondominiumsMenu, "Nao foi possivel atualizar o menu de condominios:");
 }
 
 async function ensureCustomerProfile({ name, email, cpf = "", phone = "" }) {
@@ -715,6 +721,37 @@ async function ensureCustomerProfile({ name, email, cpf = "", phone = "" }) {
 
 async function fetchAssignedCondominiums({ limit } = {}) {
   if (!db || !clienteLogado?.id) return [];
+
+  let directQuery = db
+    .from("customer_condominiums")
+    .select(`
+      condominium_id,
+      assigned_at,
+      condominiums (
+        id,
+        name,
+        address,
+        notes
+      )
+    `)
+    .eq("customer_id", clienteLogado.id)
+    .order("assigned_at", { ascending: false });
+
+  if (limit) directQuery = directQuery.limit(limit);
+
+  const { data: directData, error: directError } = await directQuery;
+  if (!directError) {
+    const directCondominiums = (directData || [])
+      .map((link) => ({
+        ...(link.condominiums || { id: link.condominium_id, name: "Condominio" }),
+        assigned_at: link.assigned_at
+      }))
+      .filter((condo) => condo?.id);
+
+    if (directCondominiums.length > 0) return directCondominiums;
+  } else {
+    console.warn("Nao foi possivel consultar condominios pelo vinculo direto:", directError);
+  }
 
   try {
     let query = db.rpc("get_my_condominiums", {});
@@ -738,32 +775,7 @@ async function fetchAssignedCondominiums({ limit } = {}) {
     console.warn("Nao foi possivel consultar condominios pela RPC:", error);
   }
 
-  let fallbackQuery = db
-    .from("customer_condominiums")
-    .select(`
-      condominium_id,
-      assigned_at,
-      condominiums (
-        id,
-        name,
-        address,
-        notes
-      )
-    `)
-    .eq("customer_id", clienteLogado.id)
-    .order("assigned_at", { ascending: false });
-
-  if (limit) fallbackQuery = fallbackQuery.limit(limit);
-
-  const { data, error } = await fallbackQuery;
-  if (error) throw error;
-
-  return (data || [])
-    .map((link) => ({
-      ...(link.condominiums || { id: link.condominium_id, name: "Condominio" }),
-      assigned_at: link.assigned_at
-    }))
-    .filter((condo) => condo?.id);
+  return [];
 }
 
 async function uploadCustomerAvatar(file) {
@@ -1496,18 +1508,17 @@ document.getElementById("formClienteLogin")?.addEventListener("submit", async fu
 
     await loadClientProfile();
     if (!clienteLogado?.id) {
-      await db.auth.signOut();
       try {
-        await db.auth.signOut();
-      } catch(e) {}
-      clienteLogado = null;
-      updateClientSessionUI();
-      await updateCondominiumsMenu();
-      errorBox.textContent = "Cadastro de cliente não encontrado. Faça seu cadastro antes de entrar.";
-      return;
+        await ensureCustomerProfile({ name: email, email });
+        await loadClientProfile();
+      } catch (profileError) {
+        console.warn("Nao foi possivel preparar o cadastro do cliente:", profileError);
+      }
     }
     closeClientAuth();
-    await renderMyCondominiumsPage();
+    updateClientSessionUI();
+    runInBackground(updateCondominiumsMenu, "Nao foi possivel atualizar o menu de condominios:");
+    runInBackground(renderMyCondominiumsPage, "Nao foi possivel renderizar meus condominios:");
   } catch (error) {
     console.error("Erro no login do cliente:", error);
     errorBox.textContent = "Não foi possível entrar agora.";
@@ -1649,8 +1660,10 @@ document.getElementById("reviewForm")?.addEventListener("submit", async function
 });
 
 if (db) {
-  db.auth.onAuthStateChange(async () => {
-    await loadClientProfile();
-    await renderMyCondominiumsPage();
+  db.auth.onAuthStateChange(() => {
+    runInBackground(async () => {
+      await loadClientProfile();
+      await renderMyCondominiumsPage();
+    }, "Nao foi possivel atualizar a sessao do cliente:");
   });
 }
