@@ -66,6 +66,22 @@
     .client-item h4 { margin: 0 0 .35rem; color: #e7ecec; }
     .client-meta { color: #9aa7aa; font-size: .9rem; line-height: 1.55; }
     .client-edit-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .85rem; }
+    .admin-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+    .condo-item, .doc-item {
+      border: 1px solid #203040;
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      background: #071014;
+    }
+    .condo-item h4, .doc-item h4 { margin: 0 0 .35rem; color: #e7ecec; }
+    .condo-meta { color: #9aa7aa; font-size: .88rem; line-height: 1.5; }
+    .doc-pill {
+      display: inline-flex; align-items: center; padding: .25rem .55rem;
+      border-radius: 999px; background: rgba(214, 200, 173, .12);
+      color: #d6c8ad; font-size: .72rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .08em; margin-bottom: .45rem;
+    }
     
     /* Lista de avaliações */
     .review-item { border-bottom: 1px solid #333; padding: 1rem 0; display: flex; justify-content: space-between; align-items: center;}
@@ -80,6 +96,7 @@
       <h2>Painel Edifique</h2>
       <a class="active" onclick="showTab('tab-avaliacoes')">Gerenciar Avaliações</a>
       <a onclick="showTab('tab-obras')">Obras, Fotos e Álbuns</a>
+      <a onclick="showTab('tab-condominios')">Condominios</a>
       <a onclick="showTab('tab-clientes')">Clientes/Cadastros</a>
       <a onclick="sairAdmin()" style="margin-top: 2rem; background: #333;">Sair</a>
     </div>
@@ -105,6 +122,12 @@
             <label>Categoria / Descrição (Opcional)</label>
             <input type="text" id="projDesc" placeholder="Ex: Recuperação Estrutural" />
           </div>
+          <div class="form-group">
+            <label>Condominio vinculado (Opcional)</label>
+            <select id="projCondoSelect">
+              <option value="">Nenhum condominio</option>
+            </select>
+          </div>
           <button onclick="criarProjeto()">Salvar Projeto</button>
         </div>
 
@@ -127,6 +150,76 @@
         <div class="card">
           <p class="muted">Apague uma foto específica ou remova a obra inteira junto com todas as fotos do álbum.</p>
           <div id="albumsList">Carregando álbuns...</div>
+        </div>
+      </div>
+
+      <!-- TAB CONDOMINIOS -->
+      <div id="tab-condominios" class="tab-content hidden">
+        <h3>Condominios</h3>
+        <div class="admin-grid">
+          <div class="card">
+            <h3>Cadastrar condominio</h3>
+            <div class="form-group">
+              <label>Nome</label>
+              <input type="text" id="condoName" placeholder="Ex: Residencial Vista Mar" />
+            </div>
+            <div class="form-group">
+              <label>Endereco</label>
+              <input type="text" id="condoAddress" placeholder="Rua, numero, bairro" />
+            </div>
+            <div class="form-group">
+              <label>Observacoes</label>
+              <textarea id="condoNotes" rows="3" placeholder="Informacoes internas"></textarea>
+            </div>
+            <button onclick="criarCondominio()">Salvar condominio</button>
+          </div>
+
+          <div class="card">
+            <h3>Atribuir a cliente</h3>
+            <div class="form-group">
+              <label>Cliente</label>
+              <select id="condoCustomerSelect"></select>
+            </div>
+            <div class="form-group">
+              <label>Condominio</label>
+              <select id="condoAssignSelect"></select>
+            </div>
+            <button onclick="atribuirCondominioCliente()">Atribuir condominio</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Documentos do condominio</h3>
+          <div class="admin-grid">
+            <div class="form-group">
+              <label>Condominio</label>
+              <select id="docCondoSelect"></select>
+            </div>
+            <div class="form-group">
+              <label>Tipo</label>
+              <select id="docType">
+                <option value="Laudo">Laudo</option>
+                <option value="RT">RT</option>
+                <option value="ART">ART</option>
+                <option value="Relatorio">Relatorio</option>
+                <option value="Outro">Outro</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Titulo</label>
+            <input type="text" id="docTitle" placeholder="Ex: Laudo de vistoria 2026" />
+          </div>
+          <div class="form-group">
+            <label>Arquivo</label>
+            <input type="file" id="docFile" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" />
+          </div>
+          <button onclick="uploadDocumentoCondominio()">Registrar documento</button>
+        </div>
+
+        <div class="card">
+          <h3>Condominios cadastrados</h3>
+          <div id="condominiosList">Carregando condominios...</div>
         </div>
       </div>
 
@@ -162,6 +255,7 @@
           document.getElementById('dashboardView').classList.remove('hidden');
           carregarAvaliacoes();
           carregarProjetosDropdown();
+          carregarCondominios();
           carregarAlbuns();
           carregarClientes();
         }
@@ -173,6 +267,7 @@
       document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
       document.getElementById(tabId).classList.remove('hidden');
       if (tabId === 'tab-obras') carregarAlbuns();
+      if (tabId === 'tab-condominios') carregarCondominios();
       if (tabId === 'tab-clientes') carregarClientes();
     }
 
@@ -240,16 +335,22 @@
     async function criarProjeto() {
       const name = document.getElementById('projName').value;
       const desc = document.getElementById('projDesc').value;
+      const condominiumId = document.getElementById('projCondoSelect')?.value || "";
       
       if(!name) return alert("O nome é obrigatório!");
 
-      const { data, error } = await supabaseClient.from('projects').insert([{ name: name, description: desc }]);
+      const { data, error } = await supabaseClient.from('projects').insert([{
+        name: name,
+        description: desc,
+        condominium_id: condominiumId || null
+      }]);
       
       if(error) alert("Erro ao criar: " + error.message);
       else {
         alert("Obra cadastrada com sucesso!");
         document.getElementById('projName').value = "";
         document.getElementById('projDesc').value = "";
+        if (document.getElementById('projCondoSelect')) document.getElementById('projCondoSelect').value = "";
         carregarProjetosDropdown(); // Atualiza a lista de seleção
         carregarAlbuns();
       }
@@ -262,6 +363,9 @@
         select.innerHTML = '<option value="">Selecione uma obra...</option>' + 
           data.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
       }
+
+      const condoSelect = document.getElementById('projCondoSelect');
+      if (condoSelect) await preencherCondominiosSelect(condoSelect, "Nenhum condominio");
     }
 
     function getPortfolioPathFromUrl(photoUrl) {
@@ -382,6 +486,234 @@
       await removerArquivosStorage((photos || []).map(photo => photo.photo_url));
       carregarProjetosDropdown();
       carregarAlbuns();
+    }
+
+    // ----------------------------
+    // GERENCIAMENTO DE CONDOMINIOS
+    // ----------------------------
+    async function listarCondominios() {
+      const { data, error } = await supabaseClient
+        .from('condominiums')
+        .select('id, name, address, notes, created_at')
+        .order('name', { ascending: true });
+
+      if (error) throw error;
+      return data || [];
+    }
+
+    async function preencherCondominiosSelect(select, emptyLabel = "Selecione um condominio") {
+      if (!select) return;
+
+      try {
+        const condominios = await listarCondominios();
+        select.innerHTML = `<option value="">${emptyLabel}</option>` +
+          condominios.map(condo => `<option value="${condo.id}">${escapeHtml(condo.name)}</option>`).join('');
+      } catch {
+        select.innerHTML = '<option value="">Erro ao carregar condominios</option>';
+      }
+    }
+
+    async function preencherClientesSelect() {
+      const select = document.getElementById('condoCustomerSelect');
+      if (!select) return;
+
+      const { data, error } = await supabaseClient.rpc('admin_list_customers');
+      if (error) {
+        select.innerHTML = '<option value="">Erro ao carregar clientes</option>';
+        return;
+      }
+
+      select.innerHTML = '<option value="">Selecione um cliente</option>' +
+        (data || []).map(cliente => `<option value="${cliente.id}">${escapeHtml(cliente.name)} - ${escapeHtml(cliente.email)}</option>`).join('');
+    }
+
+    async function carregarCondominios() {
+      const container = document.getElementById('condominiosList');
+      if (!container) return;
+
+      container.innerHTML = "Carregando condominios...";
+      await preencherCondominiosSelect(document.getElementById('condoAssignSelect'));
+      await preencherCondominiosSelect(document.getElementById('docCondoSelect'));
+      await preencherCondominiosSelect(document.getElementById('projCondoSelect'), "Nenhum condominio");
+      await preencherClientesSelect();
+
+      const { data, error } = await supabaseClient
+        .from('condominiums')
+        .select(`
+          id,
+          name,
+          address,
+          notes,
+          customer_condominiums (
+            id,
+            customers (
+              name,
+              email
+            )
+          ),
+          condominium_documents (
+            id,
+            title,
+            document_type,
+            file_name,
+            file_path,
+            uploaded_at
+          )
+        `)
+        .order('name', { ascending: true });
+
+      if (error) {
+        container.innerHTML = "Erro ao carregar condominios.";
+        return;
+      }
+
+      if (!data.length) {
+        container.innerHTML = "Nenhum condominio cadastrado.";
+        return;
+      }
+
+      container.innerHTML = data.map((condo) => {
+        const clientes = condo.customer_condominiums || [];
+        const docs = condo.condominium_documents || [];
+        const clientesHtml = clientes.length
+          ? clientes.map(link => `<div>${escapeHtml(link.customers?.name || "Cliente")} - ${escapeHtml(link.customers?.email || "")}</div>`).join('')
+          : '<div>Nenhum cliente atribuido.</div>';
+        const docsHtml = docs.length
+          ? docs.map(doc => `
+            <div class="doc-item">
+              <span class="doc-pill">${escapeHtml(doc.document_type)}</span>
+              <h4>${escapeHtml(doc.title)}</h4>
+              <div class="condo-meta">${escapeHtml(doc.file_name || doc.file_path)}</div>
+              <button class="danger" onclick="deletarDocumentoCondominio(${doc.id}, '${encodeURIComponent(doc.file_path)}')">Apagar documento</button>
+            </div>
+          `).join('')
+          : '<p class="muted">Nenhum documento registrado.</p>';
+
+        return `
+          <div class="condo-item">
+            <div class="client-item-head">
+              <div>
+                <h4>${escapeHtml(condo.name)}</h4>
+                <div class="condo-meta">
+                  <div>${escapeHtml(condo.address || "Endereco nao informado")}</div>
+                  <div>${escapeHtml(condo.notes || "")}</div>
+                </div>
+              </div>
+              <button class="danger" onclick="deletarCondominio(${condo.id})">Apagar condominio</button>
+            </div>
+            <div class="admin-grid">
+              <div>
+                <strong>Clientes atribuidos</strong>
+                <div class="condo-meta">${clientesHtml}</div>
+              </div>
+              <div>
+                <strong>Documentos</strong>
+                ${docsHtml}
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function criarCondominio() {
+      const name = document.getElementById('condoName').value.trim();
+      const address = document.getElementById('condoAddress').value.trim();
+      const notes = document.getElementById('condoNotes').value.trim();
+
+      if (!name) return alert("Informe o nome do condominio.");
+
+      const { error } = await supabaseClient.from('condominiums').insert([{ name, address, notes }]);
+      if (error) return alert("Erro ao criar condominio: " + error.message);
+
+      document.getElementById('condoName').value = "";
+      document.getElementById('condoAddress').value = "";
+      document.getElementById('condoNotes').value = "";
+      alert("Condominio cadastrado com sucesso!");
+      carregarCondominios();
+      carregarProjetosDropdown();
+    }
+
+    async function atribuirCondominioCliente() {
+      const customerId = document.getElementById('condoCustomerSelect').value;
+      const condominiumId = document.getElementById('condoAssignSelect').value;
+
+      if (!customerId || !condominiumId) return alert("Selecione cliente e condominio.");
+
+      const { error } = await supabaseClient
+        .from('customer_condominiums')
+        .upsert([{ customer_id: customerId, condominium_id: condominiumId }], {
+          onConflict: 'customer_id,condominium_id'
+        });
+
+      if (error) return alert("Erro ao atribuir condominio: " + error.message);
+      alert("Condominio atribuido ao cliente!");
+      carregarCondominios();
+    }
+
+    async function uploadDocumentoCondominio() {
+      const condominiumId = document.getElementById('docCondoSelect').value;
+      const documentType = document.getElementById('docType').value;
+      const title = document.getElementById('docTitle').value.trim();
+      const fileInput = document.getElementById('docFile');
+
+      if (!condominiumId) return alert("Selecione um condominio.");
+      if (!title) return alert("Informe o titulo do documento.");
+      if (!fileInput.files.length) return alert("Selecione um arquivo.");
+
+      const file = fileInput.files[0];
+      const ext = (file.name.split('.').pop() || 'pdf').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '-');
+      const filePath = `${condominiumId}/${Date.now()}-${safeName || `documento.${ext}`}`;
+
+      const { error: uploadError } = await supabaseClient.storage
+        .from('condominium-documents')
+        .upload(filePath, file, { contentType: file.type, upsert: false });
+
+      if (uploadError) return alert("Erro no upload: " + uploadError.message);
+
+      const { error } = await supabaseClient.from('condominium_documents').insert([{
+        condominium_id: condominiumId,
+        title,
+        document_type: documentType,
+        file_path: filePath,
+        file_name: file.name
+      }]);
+
+      if (error) return alert("Erro ao registrar documento: " + error.message);
+
+      document.getElementById('docTitle').value = "";
+      fileInput.value = "";
+      alert("Documento registrado com sucesso!");
+      carregarCondominios();
+    }
+
+    async function deletarDocumentoCondominio(docId, encodedPath) {
+      if (!confirm("Tem certeza que deseja apagar este documento?")) return;
+
+      const filePath = decodeURIComponent(encodedPath);
+      const { error } = await supabaseClient.from('condominium_documents').delete().eq('id', docId);
+      if (error) return alert("Erro ao apagar documento: " + error.message);
+
+      await supabaseClient.storage.from('condominium-documents').remove([filePath]);
+      carregarCondominios();
+    }
+
+    async function deletarCondominio(id) {
+      if (!confirm("Tem certeza que deseja apagar este condominio? Vinculos e documentos cadastrados serao removidos.")) return;
+
+      const { data: docs } = await supabaseClient
+        .from('condominium_documents')
+        .select('file_path')
+        .eq('condominium_id', id);
+
+      const { error } = await supabaseClient.from('condominiums').delete().eq('id', id);
+      if (error) return alert("Erro ao apagar condominio: " + error.message);
+
+      const paths = (docs || []).map(doc => doc.file_path).filter(Boolean);
+      if (paths.length) await supabaseClient.storage.from('condominium-documents').remove(paths);
+      carregarCondominios();
+      carregarProjetosDropdown();
     }
 
     // ----------------------------
