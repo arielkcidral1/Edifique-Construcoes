@@ -10,7 +10,10 @@ const db = window.supabase
     )
   : null;
 
+const ADMIN_EMAIL = "admin@edifique.com";
+
 let clienteLogado = null;
+let adminLogado = false;
 let projectAlbums = [];
 
 function escapeHtml(value) {
@@ -76,6 +79,14 @@ function updateClientSessionUI() {
   const btn = document.getElementById("clientSessionBtn");
   if (!btn) return;
 
+  btn.hidden = adminLogado;
+  if (adminLogado) {
+    document.body.classList.remove("client-logged-in");
+    btn.setAttribute("aria-hidden", "true");
+    return;
+  }
+
+  btn.removeAttribute("aria-hidden");
   const label = btn.querySelector("span");
   if (clienteLogado) {
     document.body.classList.add("client-logged-in");
@@ -546,6 +557,7 @@ async function resolveEmailFromCredential(credential) {
 
 async function loadClientProfile() {
   if (!db) {
+    adminLogado = false;
     clienteLogado = null;
     updateClientSessionUI();
     return;
@@ -555,7 +567,17 @@ async function loadClientProfile() {
   const user = sessionData?.session?.user;
 
   if (!user) {
+    adminLogado = false;
     clienteLogado = null;
+    updateClientSessionUI();
+    return;
+  }
+
+  adminLogado = normalizeEmail(user.email) === ADMIN_EMAIL;
+  if (adminLogado) {
+    clienteLogado = null;
+    closeAccountPanel();
+    closeClientAuth();
     updateClientSessionUI();
     return;
   }
@@ -1060,6 +1082,7 @@ document.querySelectorAll(".client-auth-tab").forEach((btn) => {
 
 // Botão de sessão: se logado, abre o painel de conta; se não, abre o login
 document.getElementById("clientSessionBtn")?.addEventListener("click", async () => {
+  if (adminLogado) return;
   if (clienteLogado) {
     showAccountPanel();
     return;

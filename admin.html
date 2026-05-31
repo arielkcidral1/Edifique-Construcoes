@@ -119,10 +119,6 @@
             <input type="text" id="projName" placeholder="Ex: Condomínio Residencial Y" />
           </div>
           <div class="form-group">
-            <label>Categoria / Descrição (Opcional)</label>
-            <input type="text" id="projDesc" placeholder="Ex: Recuperação Estrutural" />
-          </div>
-          <div class="form-group">
             <label>Condominio vinculado (Opcional)</label>
             <select id="projCondoSelect">
               <option value="">Nenhum condominio</option>
@@ -352,14 +348,13 @@
 
     async function criarProjeto() {
       const name = document.getElementById('projName').value;
-      const desc = document.getElementById('projDesc').value;
       const condominiumId = document.getElementById('projCondoSelect')?.value || "";
       
       if(!name) return alert("O nome é obrigatório!");
 
       const { data, error } = await supabaseClient.from('projects').insert([{
         name: name,
-        description: desc,
+        description: "",
         condominium_id: condominiumId || null
       }]);
       
@@ -367,7 +362,6 @@
       else {
         alert("Obra cadastrada com sucesso!");
         document.getElementById('projName').value = "";
-        document.getElementById('projDesc').value = "";
         if (document.getElementById('projCondoSelect')) document.getElementById('projCondoSelect').value = "";
         carregarProjetosDropdown(); // Atualiza a lista de seleção
         carregarAlbuns();

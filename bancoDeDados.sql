@@ -247,6 +247,8 @@ BEGIN
   RETURN QUERY
   SELECT c.id, c.name, c.email, c.phone, c.cpf, c.avatar_url, c.created_at
   FROM public.customers c
+  WHERE lower(c.email) <> 'admin@edifique.com'
+    AND lower(c.name) <> lower('Administrador Edifique')
   ORDER BY c.created_at DESC NULLS LAST, c.id DESC;
 END;
 $$;
