@@ -744,12 +744,18 @@
         return;
       }
 
-      if (!data.length) {
+      const clientesVisiveis = (data || []).filter((cliente) => {
+        const email = (cliente.email || "").toLowerCase();
+        const name = (cliente.name || "").toLowerCase();
+        return email !== "admin@edifique.com" && name !== "administrador edifique";
+      });
+
+      if (!clientesVisiveis.length) {
         container.innerHTML = "Nenhum cliente cadastrado.";
         return;
       }
 
-      container.innerHTML = data.map((cliente) => {
+      container.innerHTML = clientesVisiveis.map((cliente) => {
         const isAdminUser = (cliente.email || "").toLowerCase() === "admin@edifique.com";
         const deleteAction = isAdminUser
           ? '<span class="muted">Conta administrativa protegida</span>'
