@@ -568,6 +568,118 @@
       opacity: .48;
       transform: none;
     }
+    .my-condos-page .projects-list-section {
+      background: var(--dark);
+    }
+    .my-condo-block {
+      padding: 2rem;
+      border: 1px solid rgba(120,144,155,.16);
+      background: var(--charcoal);
+    }
+    .my-condo-block + .my-condo-block {
+      margin-top: 1.5rem;
+    }
+    .my-condo-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 1px solid rgba(120,144,155,.14);
+    }
+    .my-condo-head p {
+      margin-top: .8rem;
+      color: var(--cream);
+      font-size: .94rem;
+      font-weight: 300;
+      line-height: 1.65;
+      opacity: .68;
+    }
+    .my-condo-columns {
+      display: grid;
+      grid-template-columns: minmax(0, 1.45fr) minmax(280px, .75fr);
+      gap: 1.5rem;
+      align-items: start;
+    }
+    .my-condo-section-title {
+      margin-bottom: 1rem;
+      color: var(--gold);
+      font-size: .72rem;
+      font-weight: 800;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+    }
+    .my-condo-list {
+      display: grid;
+      gap: 1rem;
+    }
+    .my-condo-projects-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1.25rem;
+    }
+    .my-condo-project {
+      border-color: rgba(214, 200, 173, .16);
+    }
+    .my-condo-project .project-card-media {
+      aspect-ratio: 4 / 3;
+    }
+    .my-condo-doc {
+      position: relative;
+      min-width: 0;
+      padding: 1.25rem;
+      border: 1px solid rgba(120,144,155,.16);
+      background: rgba(7, 16, 20, .46);
+      overflow: hidden;
+      transition: background .25s, border-color .25s, transform .2s;
+    }
+    .my-condo-doc::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(192,142,98,.12) 0%, transparent 62%);
+      opacity: 0;
+      transition: opacity .25s;
+    }
+    .my-condo-doc:hover {
+      border-color: rgba(214, 200, 173, .3);
+      background: rgba(19, 40, 50, .72);
+      transform: translateY(-1px);
+    }
+    .my-condo-doc:hover::before {
+      opacity: 1;
+    }
+    .my-condo-doc > * {
+      position: relative;
+      z-index: 1;
+    }
+    .my-condo-doc span {
+      color: var(--rust);
+      font-size: .66rem;
+      font-weight: 800;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+    }
+    .my-condo-doc h3 {
+      margin: .65rem 0 .4rem;
+      color: var(--bone);
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.45rem;
+      line-height: 1;
+      letter-spacing: .05em;
+    }
+    .my-condo-doc p,
+    .my-condo-empty {
+      color: var(--cream);
+      font-size: .86rem;
+      font-weight: 300;
+      line-height: 1.6;
+      opacity: .68;
+      overflow-wrap: anywhere;
+    }
+    .my-condo-doc .btn-outline {
+      margin-top: 1rem;
+    }
     .project-album-overlay {
       display: none;
       position: fixed;
@@ -994,6 +1106,10 @@
       .portfolio-item:not(:first-child) { aspect-ratio: 4/3; }
       .projects-page-grid { grid-template-columns: 1fr; }
       .projects-list-header { align-items: flex-start; flex-direction: column; }
+      .my-condo-block { padding: 1.4rem; }
+      .my-condo-head { flex-direction: column; }
+      .my-condo-columns { grid-template-columns: 1fr; }
+      .my-condo-projects-grid { grid-template-columns: 1fr; }
       .project-album-modal { padding: 1rem; }
       .album-title { font-size: 1.8rem; }
       .album-controls button { padding: .65rem .75rem; }
@@ -1036,6 +1152,9 @@
       .portfolio-name { font-size: 1.35rem; }
       .projects-hero { min-height: 58dvh; padding-top: 7rem; }
       .projects-list-header { margin-bottom: 2rem; }
+      .my-condo-block { padding: 1rem; }
+      .my-condo-head { margin-bottom: 1.35rem; padding-bottom: 1.1rem; }
+      .my-condo-doc { padding: 1rem; }
       .project-card-body { padding: 1.1rem; }
       .project-album-overlay { align-items: flex-start; overflow-y: auto; }
       .project-album-modal { max-height: none; }

@@ -1010,6 +1010,7 @@ async function renderMyCondominiumsPage() {
   if (!container) return;
 
   container.innerHTML = '<p class="projects-loading">Carregando seus condominios...</p>';
+  projectAlbums = [];
 
   if (!db) {
     container.innerHTML = '<p class="projects-empty">Nao foi possivel conectar ao banco de dados.</p>';
@@ -1068,13 +1069,39 @@ async function renderMyCondominiumsPage() {
     const projectsHtml = (projects || []).length
       ? (projects || []).map((project, index) => {
         const photos = (project.project_photos || []).map((photo) => photo.photo_url).filter(Boolean);
+        const albumIndex = projectAlbums.push({
+          id: project.id,
+          category: "Obra do condominio",
+          description: project.description || "Obra vinculada ao seu condominio",
+          name: project.name,
+          photos,
+          photoUrl: photos[0] || "",
+          photoCount: photos.length,
+          bgClass: !photos.length ? `p${(index % 5) + 1}` : ""
+        }) - 1;
+        const photoLabel =
+          photos.length === 0
+            ? "Sem fotos"
+            : photos.length === 1
+              ? "1 foto"
+              : `${photos.length} fotos`;
+        const albumLabel = photos.length > 1 ? "Abrir album" : "Ver foto";
+
         return `
-          <article class="my-condo-project">
-            <div class="my-condo-project-media ${photos[0] ? "" : `p${(index % 5) + 1}`}" ${photos[0] ? `style="background-image:url('${escapeAttr(photos[0])}')"` : ""}></div>
-            <div>
-              <span>${photos.length === 1 ? "1 foto" : `${photos.length} fotos`}</span>
-              <h3>${escapeHtml(project.name)}</h3>
+          <article class="project-card my-condo-project reveal" data-project-index="${albumIndex}">
+            <div class="project-card-media">
+              <div class="portfolio-bg ${photos[0] ? "" : `p${(index % 5) + 1}`}" ${photos[0] ? `style="background-image:url('${escapeAttr(photos[0])}')"` : ""}></div>
+              <div class="portfolio-overlay"></div>
+              <div class="portfolio-pattern"></div>
+              <div class="project-card-badge">${photoLabel}</div>
+            </div>
+            <div class="project-card-body">
+              <div class="portfolio-cat">Obra do condominio</div>
+              <h2>${escapeHtml(project.name)}</h2>
               <p>${escapeHtml(project.description || "Obra do condominio")}</p>
+              <button class="project-album-btn" type="button" data-open-album="${albumIndex}" ${
+                photos.length ? "" : "disabled"
+              }>${albumLabel}</button>
             </div>
           </article>
         `;
@@ -1082,16 +1109,20 @@ async function renderMyCondominiumsPage() {
       : '<p class="my-condo-empty">Nenhuma obra vinculada a este condominio.</p>';
 
     const documentsHtml = (await Promise.all((documents || []).map(async (doc) => {
-      const { data } = await db.storage
+      const { data, error } = await db.storage
         .from("condominium-documents")
-        .createSignedUrl(doc.file_path, 60 * 15);
+        .createSignedUrl(doc.file_path, 60 * 15, {
+          download: doc.file_name || true
+        });
+
+      if (error) console.error("Erro ao gerar download do documento:", error);
 
       return `
         <article class="my-condo-doc">
           <span>${escapeHtml(doc.document_type)}</span>
           <h3>${escapeHtml(doc.title)}</h3>
           <p>${escapeHtml(doc.file_name || "Documento")}</p>
-          ${data?.signedUrl ? `<a class="btn-outline" href="${escapeAttr(data.signedUrl)}" target="_blank" rel="noopener">Abrir documento</a>` : '<p class="my-condo-empty">Arquivo indisponivel.</p>'}
+          ${data?.signedUrl ? `<a class="btn-outline" href="${escapeAttr(data.signedUrl)}" download="${escapeAttr(doc.file_name || doc.title || "documento")}">Baixar documento</a>` : '<p class="my-condo-empty">Arquivo indisponivel para download.</p>'}
         </article>
       `;
     }))).join("") || '<p class="my-condo-empty">Nenhum laudo, RT ou documento registrado.</p>';
@@ -1108,7 +1139,7 @@ async function renderMyCondominiumsPage() {
         <div class="my-condo-columns">
           <div>
             <h3 class="my-condo-section-title">Obras</h3>
-            <div class="my-condo-list">${projectsHtml}</div>
+            <div class="my-condo-list my-condo-projects-grid">${projectsHtml}</div>
           </div>
           <div>
             <h3 class="my-condo-section-title">Documentos</h3>
@@ -1120,6 +1151,7 @@ async function renderMyCondominiumsPage() {
   }));
 
   container.innerHTML = html.join("");
+  setupProjectAlbums();
   setupRevealAnimation();
 }
 
