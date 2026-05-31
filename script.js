@@ -84,6 +84,29 @@ function renderAvatarContent(name, avatarUrl = "", className = "") {
   return escapeHtml(getInitials(name));
 }
 
+function clearSupabaseAuthCache() {
+  [localStorage, sessionStorage].forEach((storage) => {
+    try {
+      Object.keys(storage)
+        .filter((key) => key.startsWith("sb-") || key.includes("supabase"))
+        .forEach((key) => storage.removeItem(key));
+    } catch {
+      // Storage can be unavailable in private or restricted browser modes.
+    }
+  });
+}
+
+async function signOutClient() {
+  if (db) {
+    const { error } = await db.auth.signOut();
+    if (error) console.warn("Nao foi possivel encerrar a sessao no servidor:", error.message);
+  }
+
+  clearSupabaseAuthCache();
+  clienteLogado = null;
+  updateClientSessionUI();
+}
+
 function updateClientSessionUI() {
   const btn = document.getElementById("clientSessionBtn");
   if (!btn) return;
@@ -229,7 +252,7 @@ function buildAccountPanel() {
           </button>
         </nav>
         <div style="flex: 1;"></div>
-        <button class="account-logout-btn" id="accountLogoutBtn">
+        <button class="account-logout-btn" id="accountLogoutBtn" type="button">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
           Sair da conta
         </button>
@@ -309,7 +332,7 @@ function buildAccountPanel() {
           <div class="account-danger-zone">
             <div class="account-section-label" style="color:#ff8a78;">Zona de perigo</div>
             <p class="account-section-desc">Esta ação é permanente e não pode ser desfeita.</p>
-            <button class="account-btn-danger" id="accountDeleteBtn">Excluir minha conta</button>
+            <button class="account-btn-danger" id="accountDeleteBtn" type="button">Excluir minha conta</button>
           </div>
         </div>
 
@@ -347,11 +370,16 @@ function buildAccountPanel() {
   });
 
   // Logout
-  panel.querySelector("#accountLogoutBtn").addEventListener("click", async () => {
-    await db.auth.signOut();
-    clienteLogado = null;
-    updateClientSessionUI();
-    closeAccountPanel();
+  panel.querySelector("#accountLogoutBtn").addEventListener("click", async (event) => {
+    const button = event.currentTarget;
+    button.disabled = true;
+    try {
+      await signOutClient();
+      closeAccountPanel();
+      await renderMyCondominiumsPage();
+    } finally {
+      button.disabled = false;
+    }
   });
 
   // CPF / Phone masks
@@ -481,9 +509,7 @@ function buildAccountPanel() {
   panel.querySelector("#accountDeleteBtn").addEventListener("click", async () => {
     if (!confirm("Tem certeza que deseja excluir sua conta? Esta ação é permanente.")) return;
     // sign out first – server-side deletion requires service role; for now we sign out and inform
-    await db.auth.signOut();
-    clienteLogado = null;
-    updateClientSessionUI();
+    await signOutClient();
     closeAccountPanel();
     alert("Sua solicitação de exclusão foi registrada. Entraremos em contato para concluir o processo.");
   });
@@ -1315,9 +1341,7 @@ document.getElementById("formClienteLogin")?.addEventListener("submit", async fu
 
     await loadClientProfile();
     if (!clienteLogado?.id) {
-      await db.auth.signOut();
-      clienteLogado = null;
-      updateClientSessionUI();
+      await signOutClient();
       errorBox.textContent = "Cadastro de cliente nÃ£o encontrado. Faça seu cadastro antes de entrar.";
       return;
     }

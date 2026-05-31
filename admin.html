@@ -98,7 +98,7 @@
       <a onclick="showTab('tab-obras')">Obras, Fotos e Álbuns</a>
       <a onclick="showTab('tab-condominios')">Condominios</a>
       <a onclick="showTab('tab-clientes')">Clientes/Cadastros</a>
-      <a onclick="sairAdmin()" style="margin-top: 2rem; background: #333;">Sair</a>
+      <a href="#" onclick="sairAdmin(event)" style="margin-top: 2rem; background: #333;">Sair</a>
     </div>
     
     <div class="content">
@@ -271,9 +271,27 @@
       if (tabId === 'tab-clientes') carregarClientes();
     }
 
-    async function sairAdmin() {
-      await supabaseClient.auth.signOut();
-      location.reload();
+    function clearSupabaseAuthCache() {
+      [localStorage, sessionStorage].forEach((storage) => {
+        try {
+          Object.keys(storage)
+            .filter((key) => key.startsWith("sb-") || key.includes("supabase"))
+            .forEach((key) => storage.removeItem(key));
+        } catch {
+          // Storage can be unavailable in restricted browser modes.
+        }
+      });
+    }
+
+    async function sairAdmin(event) {
+      if (event) event.preventDefault();
+      try {
+        const { error } = await supabaseClient.auth.signOut();
+        if (error) console.warn("Nao foi possivel encerrar a sessao no servidor:", error.message);
+      } finally {
+        clearSupabaseAuthCache();
+        window.location.replace('admin-login.html');
+      }
     }
 
     function formatReviewDate(value) {
