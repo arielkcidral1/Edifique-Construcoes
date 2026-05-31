@@ -289,8 +289,8 @@
       position: absolute;
       inset: 0;
       background:
-        linear-gradient(180deg, rgba(7,16,20,.04) 0%, rgba(7,16,20,.34) 100%),
-        linear-gradient(145deg, rgba(192,142,98,.1) 0%, transparent 48%);
+        linear-gradient(180deg, rgba(7,16,20,.03) 0%, rgba(7,16,20,.28) 100%),
+        linear-gradient(145deg, rgba(192,142,98,.08) 0%, transparent 48%);
       pointer-events: none;
     }
     .about-image {
@@ -298,8 +298,8 @@
       height: 100%;
       display: block;
       object-fit: cover;
-      object-position: center;
-      filter: saturate(.82) contrast(1.03);
+      object-position: 36% center;
+      filter: saturate(.9) contrast(1.02);
     }
     .about-accent {
       position: absolute; bottom: -1.5rem; right: -1.5rem;
