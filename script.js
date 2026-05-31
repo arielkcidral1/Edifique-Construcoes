@@ -684,6 +684,16 @@ async function createCondominiumDocumentDownloadUrl(doc) {
     errors.push({ filePath, error });
   }
 
+  for (const filePath of uniquePaths) {
+    const { data } = db.storage
+      .from("condominium-documents")
+      .getPublicUrl(filePath, {
+        download: fileName
+      });
+
+    if (data?.publicUrl) return data.publicUrl;
+  }
+
   console.error("Erro ao gerar link de download do documento:", {
     errors,
     documentId: doc.id,
@@ -740,7 +750,7 @@ async function loadAccountDocuments() {
             <p>${escapeHtml(condo?.name || "Condominio")}${dateLabel ? ` - ${dateLabel}` : ""}</p>
             <small>${escapeHtml(fileName)}</small>
           </div>
-          ${signedUrl ? `<a class="account-document-download" href="${escapeAttr(signedUrl)}" download="${escapeAttr(fileName)}">Baixar</a>` : '<span class="account-document-unavailable">Sem permissao</span>'}
+          ${signedUrl ? `<a class="account-document-download" href="${escapeAttr(signedUrl)}" download="${escapeAttr(fileName)}">Baixar</a>` : '<span class="account-document-unavailable">Arquivo nao encontrado</span>'}
         </article>
       `;
     }));
@@ -1225,7 +1235,7 @@ async function renderMyCondominiumsPage() {
           <span>${escapeHtml(doc.document_type)}</span>
           <h3>${escapeHtml(doc.title)}</h3>
           <p>${escapeHtml(fileName)}</p>
-          ${signedUrl ? `<a class="btn-outline" href="${escapeAttr(signedUrl)}" download="${escapeAttr(fileName)}">Baixar documento</a>` : '<p class="my-condo-empty">Arquivo sem permissao de download.</p>'}
+          ${signedUrl ? `<a class="btn-outline" href="${escapeAttr(signedUrl)}" download="${escapeAttr(fileName)}">Baixar documento</a>` : '<p class="my-condo-empty">Arquivo nao encontrado no storage.</p>'}
         </article>
       `;
     }))).join("") || '<p class="my-condo-empty">Nenhum laudo, RT ou documento registrado.</p>';

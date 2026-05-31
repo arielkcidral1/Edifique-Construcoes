@@ -703,7 +703,7 @@ VALUES ('avatars', 'avatars', true)
 ON CONFLICT (id) DO UPDATE SET public = EXCLUDED.public;
 
 INSERT INTO storage.buckets (id, name, public)
-VALUES ('condominium-documents', 'condominium-documents', false)
+VALUES ('condominium-documents', 'condominium-documents', true)
 ON CONFLICT (id) DO UPDATE SET public = EXCLUDED.public;
 
 DROP POLICY IF EXISTS "Public portfolio photos are visible" ON storage.objects;
@@ -718,6 +718,7 @@ DROP POLICY IF EXISTS "Customers can delete own avatars" ON storage.objects;
 DROP POLICY IF EXISTS "Admins have full access to condominium documents storage" ON storage.objects;
 DROP POLICY IF EXISTS "Assigned customers can read condominium documents storage" ON storage.objects;
 DROP POLICY IF EXISTS "Authenticated users can sign condominium documents downloads" ON storage.objects;
+DROP POLICY IF EXISTS "Public can read condominium documents storage" ON storage.objects;
 
 CREATE POLICY "Admins have full access to portfolio photos"
 ON storage.objects
@@ -789,10 +790,10 @@ TO authenticated
 USING (bucket_id = 'condominium-documents' AND ((SELECT auth.jwt()) ->> 'email') = 'admin@edifique.com')
 WITH CHECK (bucket_id = 'condominium-documents' AND ((SELECT auth.jwt()) ->> 'email') = 'admin@edifique.com');
 
-CREATE POLICY "Authenticated users can sign condominium documents downloads"
+CREATE POLICY "Public can read condominium documents storage"
 ON storage.objects
 FOR SELECT
-TO authenticated
+TO anon, authenticated
 USING (
   bucket_id = 'condominium-documents'
 );
