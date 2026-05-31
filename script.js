@@ -102,6 +102,23 @@ function updateClientSessionUI() {
   }
 }
 
+async function updateCondominiumsMenu() {
+  const links = document.querySelectorAll("[data-condominiums-link]");
+  if (!links.length) return;
+
+  links.forEach((link) => { link.hidden = true; });
+  if (!db || adminLogado || !clienteLogado?.id) return;
+
+  const { count, error } = await db
+    .from("customer_condominiums")
+    .select("id", { count: "exact", head: true })
+    .eq("customer_id", clienteLogado.id);
+
+  if (!error && count > 0) {
+    links.forEach((link) => { link.hidden = false; });
+  }
+}
+
 function switchClientAuthTab(tab) {
   document.querySelectorAll(".client-auth-tab").forEach((btn) => {
     btn.classList.toggle("active", btn.dataset.clientAuthTab === tab);
@@ -335,6 +352,7 @@ function buildAccountPanel() {
     await db.auth.signOut();
     clienteLogado = null;
     updateClientSessionUI();
+    await updateCondominiumsMenu();
     closeAccountPanel();
   });
 
@@ -468,6 +486,7 @@ function buildAccountPanel() {
     await db.auth.signOut();
     clienteLogado = null;
     updateClientSessionUI();
+    await updateCondominiumsMenu();
     closeAccountPanel();
     alert("Sua solicitação de exclusão foi registrada. Entraremos em contato para concluir o processo.");
   });
@@ -563,6 +582,7 @@ async function loadClientProfile() {
     adminLogado = false;
     clienteLogado = null;
     updateClientSessionUI();
+    await updateCondominiumsMenu();
     return;
   }
 
@@ -573,6 +593,7 @@ async function loadClientProfile() {
     adminLogado = false;
     clienteLogado = null;
     updateClientSessionUI();
+    await updateCondominiumsMenu();
     return;
   }
 
@@ -582,6 +603,7 @@ async function loadClientProfile() {
     closeAccountPanel();
     closeClientAuth();
     updateClientSessionUI();
+    await updateCondominiumsMenu();
     return;
   }
 
@@ -593,6 +615,7 @@ async function loadClientProfile() {
 
   clienteLogado = data || null;
   updateClientSessionUI();
+  await updateCondominiumsMenu();
 }
 
 async function ensureCustomerProfile({ name, email, cpf = "", phone = "" }) {
@@ -1194,6 +1217,7 @@ document.getElementById("formClienteLogin")?.addEventListener("submit", async fu
       await db.auth.signOut();
       clienteLogado = null;
       updateClientSessionUI();
+      await updateCondominiumsMenu();
       errorBox.textContent = "Cadastro de cliente nÃ£o encontrado. Faça seu cadastro antes de entrar.";
       return;
     }
