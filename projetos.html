@@ -87,6 +87,72 @@
     </div>
   </footer>
 
+  <div class="client-auth-overlay" id="clientAuthOverlay" aria-hidden="true">
+    <div class="client-auth-card" role="dialog" aria-modal="true" aria-labelledby="clientAuthTitle">
+      <div class="client-auth-head">
+        <div>
+          <span class="client-auth-kicker">Acesso do cliente</span>
+          <h2 id="clientAuthTitle">Entre ou cadastre-se</h2>
+        </div>
+        <button class="modal-close" id="clientAuthClose" type="button" aria-label="Fechar">&times;</button>
+      </div>
+
+      <p class="client-auth-copy" id="clientAuthCopy">
+        Use sua conta para acompanhar solicitações, enviar avaliações e manter seus dados com a Edifique.
+      </p>
+
+      <div class="client-auth-tabs" role="tablist">
+        <button class="client-auth-tab active" type="button" data-client-auth-tab="login">Login</button>
+        <button class="client-auth-tab" type="button" data-client-auth-tab="register">Cadastro</button>
+      </div>
+
+      <form id="formClienteLogin" class="client-auth-form active" novalidate>
+        <div class="form-group">
+          <label for="cliente-login-id">E-mail ou CPF</label>
+          <input type="text" id="cliente-login-id" placeholder="seu@email.com ou 000.000.000-00" required>
+        </div>
+        <div class="form-group">
+          <label for="cliente-login-pass">Senha</label>
+          <input type="password" id="cliente-login-pass" placeholder="Sua senha" required>
+        </div>
+        <span class="login-error" id="clienteLoginError"></span>
+        <button type="submit" class="btn-primary full">Entrar como cliente</button>
+      </form>
+
+      <form id="formClienteCadastro" class="client-auth-form" novalidate>
+        <div class="form-group">
+          <label for="cliente-cad-nome">Nome completo</label>
+          <input type="text" id="cliente-cad-nome" placeholder="Seu nome completo" required>
+        </div>
+        <div class="form-grid client-auth-grid">
+          <div class="form-group">
+            <label for="cliente-cad-cpf">CPF</label>
+            <input type="text" id="cliente-cad-cpf" placeholder="000.000.000-00" maxlength="14" required>
+          </div>
+          <div class="form-group">
+            <label for="cliente-cad-phone">WhatsApp</label>
+            <input type="tel" id="cliente-cad-phone" placeholder="(00) 00000-0000" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="cliente-cad-email">E-mail</label>
+          <input type="email" id="cliente-cad-email" placeholder="seu@email.com" required>
+        </div>
+        <div class="form-group">
+          <label for="cliente-cad-pass">Senha</label>
+          <input type="password" id="cliente-cad-pass" placeholder="Mínimo de 6 caracteres" minlength="6" required>
+        </div>
+        <span class="login-error" id="clienteCadastroError"></span>
+        <button type="submit" class="btn-primary full">Cadastrar e entrar</button>
+      </form>
+
+      <div class="client-auth-actions">
+        <button type="button" class="btn-ghost full" id="btnContinuarSemLogin">Continuar sem login</button>
+        <a class="btn-link" href="admin-login.html">Sou funcionário</a>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="script.js?v=4"></script>
 </body>
