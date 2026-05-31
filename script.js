@@ -843,6 +843,140 @@ function setupProjectAlbums() {
   });
 }
 
+async function renderMyCondominiumsPage() {
+  const container = document.querySelector("[data-my-condominiums]");
+  if (!container) return;
+
+  container.innerHTML = '<p class="projects-loading">Carregando seus condominios...</p>';
+
+  if (!db) {
+    container.innerHTML = '<p class="projects-empty">Nao foi possivel conectar ao banco de dados.</p>';
+    return;
+  }
+
+  if (adminLogado) {
+    container.innerHTML = '<p class="projects-empty">A conta administrativa nao possui condominios atribuidos.</p>';
+    return;
+  }
+
+  if (!clienteLogado?.id) {
+    container.innerHTML = '<p class="projects-empty">Entre com sua conta para acessar seus condominios.</p>';
+    showClientAuth("login");
+    return;
+  }
+
+  const { data: links, error } = await db
+    .from("customer_condominiums")
+    .select(`
+      condominium_id,
+      assigned_at,
+      condominiums (
+        id,
+        name,
+        address,
+        notes
+      )
+    `)
+    .eq("customer_id", clienteLogado.id)
+    .order("assigned_at", { ascending: false });
+
+  if (error) {
+    console.error("Erro ao carregar condominios do cliente:", error);
+    container.innerHTML = '<p class="projects-empty">Nao foi possivel carregar seus condominios.</p>';
+    return;
+  }
+
+  const condominiums = (links || [])
+    .map((link) => link.condominiums || { id: link.condominium_id, name: "Condominio" })
+    .filter((condo) => condo?.id);
+
+  if (!condominiums.length) {
+    container.innerHTML = '<p class="projects-empty">Nenhum condominio foi atribuido ao seu login ainda.</p>';
+    return;
+  }
+
+  const html = await Promise.all(condominiums.map(async (condo) => {
+    const [{ data: projects, error: projectsError }, { data: documents, error: docsError }] = await Promise.all([
+      db
+        .from("projects")
+        .select(`
+          id,
+          name,
+          description,
+          project_photos (
+            photo_url
+          )
+        `)
+        .eq("condominium_id", condo.id)
+        .order("id", { ascending: false }),
+      db
+        .from("condominium_documents")
+        .select("id, title, document_type, file_path, file_name, uploaded_at")
+        .eq("condominium_id", condo.id)
+        .order("uploaded_at", { ascending: false })
+    ]);
+
+    if (projectsError) console.error("Erro ao carregar obras do condominio:", projectsError);
+    if (docsError) console.error("Erro ao carregar documentos do condominio:", docsError);
+
+    const projectsHtml = (projects || []).length
+      ? (projects || []).map((project, index) => {
+        const photos = (project.project_photos || []).map((photo) => photo.photo_url).filter(Boolean);
+        return `
+          <article class="my-condo-project">
+            <div class="my-condo-project-media ${photos[0] ? "" : `p${(index % 5) + 1}`}" ${photos[0] ? `style="background-image:url('${escapeAttr(photos[0])}')"` : ""}></div>
+            <div>
+              <span>${photos.length === 1 ? "1 foto" : `${photos.length} fotos`}</span>
+              <h3>${escapeHtml(project.name)}</h3>
+              <p>${escapeHtml(project.description || "Obra do condominio")}</p>
+            </div>
+          </article>
+        `;
+      }).join("")
+      : '<p class="my-condo-empty">Nenhuma obra vinculada a este condominio.</p>';
+
+    const documentsHtml = (await Promise.all((documents || []).map(async (doc) => {
+      const { data } = await db.storage
+        .from("condominium-documents")
+        .createSignedUrl(doc.file_path, 60 * 15);
+
+      return `
+        <article class="my-condo-doc">
+          <span>${escapeHtml(doc.document_type)}</span>
+          <h3>${escapeHtml(doc.title)}</h3>
+          <p>${escapeHtml(doc.file_name || "Documento")}</p>
+          ${data?.signedUrl ? `<a class="btn-outline" href="${escapeAttr(data.signedUrl)}" target="_blank" rel="noopener">Abrir documento</a>` : '<p class="my-condo-empty">Arquivo indisponivel.</p>'}
+        </article>
+      `;
+    }))).join("") || '<p class="my-condo-empty">Nenhum laudo, RT ou documento registrado.</p>';
+
+    return `
+      <section class="my-condo-block reveal">
+        <div class="my-condo-head">
+          <div>
+            <div class="section-label">Condominio</div>
+            <h2 class="section-title">${escapeHtml(condo.name)}</h2>
+            <p>${escapeHtml(condo.address || "Endereco nao informado")}</p>
+          </div>
+        </div>
+        <div class="my-condo-columns">
+          <div>
+            <h3 class="my-condo-section-title">Obras</h3>
+            <div class="my-condo-list">${projectsHtml}</div>
+          </div>
+          <div>
+            <h3 class="my-condo-section-title">Documentos</h3>
+            <div class="my-condo-list">${documentsHtml}</div>
+          </div>
+        </div>
+      </section>
+    `;
+  }));
+
+  container.innerHTML = html.join("");
+  setupRevealAnimation();
+}
+
 function openProjectAlbum(projectIndex, photoIndex = 0) {
   const project = projectAlbums[projectIndex];
   if (!project?.photos?.length) return;
@@ -1083,6 +1217,8 @@ async function init() {
     renderPortfolio(portfolioData.slice(0, 5));
 
     renderProjectsPage(portfolioData);
+
+    await renderMyCondominiumsPage();
 
     const testimonialsData =
       document.querySelector(".testimonials-grid")
@@ -1345,7 +1481,8 @@ document.getElementById("reviewForm")?.addEventListener("submit", async function
 });
 
 if (db) {
-  db.auth.onAuthStateChange(() => {
-    loadClientProfile();
+  db.auth.onAuthStateChange(async () => {
+    await loadClientProfile();
+    await renderMyCondominiumsPage();
   });
 }
