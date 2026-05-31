@@ -532,11 +532,6 @@ async function loadAccountReviews() {
 
   container.innerHTML = '<div class="account-reviews-loading">Carregando avaliações...</div>';
 
-  if (submitButton) {
-    submitButton.disabled = true;
-    submitButton.textContent = "Entrando...";
-  }
-
   try {
     const { data: sessionData } = await db.auth.getSession();
     const user = sessionData?.session?.user;
@@ -1343,6 +1338,11 @@ document.getElementById("formClienteLogin")?.addEventListener("submit", async fu
   if (!credential || !password) {
     errorBox.textContent = "Informe e-mail/CPF e senha.";
     return;
+  }
+
+  if (submitButton) {
+    submitButton.disabled = true;
+    submitButton.textContent = "Entrando...";
   }
 
   try {
