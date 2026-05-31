@@ -351,12 +351,6 @@ function buildAccountPanel() {
   });
 
   // Logout
-  panel.querySelector("#accountLogoutBtn").addEventListener("click", async () => {
-    await db.auth.signOut();
-    clienteLogado = null;
-    updateClientSessionUI();
-    await updateCondominiumsMenu();
-    closeAccountPanel();
   panel.querySelector("#accountLogoutBtn").addEventListener("click", async (e) => {
     const btn = e.currentTarget;
     btn.style.opacity = "0.5";
@@ -506,12 +500,6 @@ function buildAccountPanel() {
   panel.querySelector("#accountDeleteBtn").addEventListener("click", async () => {
     if (!confirm("Tem certeza que deseja excluir sua conta? Esta ação é permanente.")) return;
     // sign out first – server-side deletion requires service role; for now we sign out and inform
-    await db.auth.signOut();
-    clienteLogado = null;
-    updateClientSessionUI();
-    await updateCondominiumsMenu();
-    closeAccountPanel();
-    alert("Sua solicitação de exclusão foi registrada. Entraremos em contato para concluir o processo.");
     try {
       if (db) await db.auth.signOut();
     } catch (err) {
