@@ -353,6 +353,7 @@ function buildAccountPanel() {
   // Logout
   panel.querySelector("#accountLogoutBtn").addEventListener("click", async (e) => {
     const btn = e.currentTarget;
+    const originalHtml = btn.innerHTML;
     btn.style.opacity = "0.5";
     btn.style.pointerEvents = "none";
     btn.innerHTML = "Saindo...";
@@ -366,10 +367,25 @@ function buildAccountPanel() {
       [localStorage, sessionStorage].forEach((s) => {
         try { Object.keys(s).filter(k => k.startsWith("sb-")).forEach(k => s.removeItem(k)); } catch(e) {}
       });
+      // Limpeza segura do cache para evitar bloqueios de segurança do navegador
+      try {
+        if (window.localStorage) Object.keys(window.localStorage).filter(k => k.startsWith("sb-")).forEach(k => window.localStorage.removeItem(k));
+      } catch(e) {}
+      try {
+        if (window.sessionStorage) Object.keys(window.sessionStorage).filter(k => k.startsWith("sb-")).forEach(k => window.sessionStorage.removeItem(k));
+      } catch(e) {}
       
       clienteLogado = null;
+      updateClientSessionUI();
+      await updateCondominiumsMenu();
+      if (typeof renderMyCondominiumsPage === 'function') await renderMyCondominiumsPage();
       closeAccountPanel();
       window.location.reload();
+
+      // Reseta o botão para caso o painel seja aberto novamente
+      btn.style.opacity = "1";
+      btn.style.pointerEvents = "auto";
+      btn.innerHTML = originalHtml;
     }
   });
 
@@ -508,8 +524,16 @@ function buildAccountPanel() {
       [localStorage, sessionStorage].forEach((s) => {
         try { Object.keys(s).filter(k => k.startsWith("sb-")).forEach(k => s.removeItem(k)); } catch(e) {}
       });
+      try {
+        if (window.localStorage) Object.keys(window.localStorage).filter(k => k.startsWith("sb-")).forEach(k => window.localStorage.removeItem(k));
+      } catch(e) {}
+      try {
+        if (window.sessionStorage) Object.keys(window.sessionStorage).filter(k => k.startsWith("sb-")).forEach(k => window.sessionStorage.removeItem(k));
+      } catch(e) {}
       
       clienteLogado = null;
+      updateClientSessionUI();
+      await updateCondominiumsMenu();
       closeAccountPanel();
       alert("Sua solicitação de exclusão foi registrada. Entraremos em contato para concluir o processo.");
       window.location.replace("index.html");
