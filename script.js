@@ -113,13 +113,13 @@ async function updateCondominiumsMenu() {
   links.forEach((link) => { link.hidden = true; });
   if (!db || adminLogado || !clienteLogado?.id) return;
 
-  const { count, error } = await db
-    .from("customer_condominiums")
-    .select("id", { count: "exact", head: true })
-    .eq("customer_id", clienteLogado.id);
-
-  if (!error && count > 0) {
-    links.forEach((link) => { link.hidden = false; });
+  try {
+    const condominiums = await fetchAssignedCondominiums({ limit: 1 });
+    if (condominiums.length > 0) {
+      links.forEach((link) => { link.hidden = false; });
+    }
+  } catch (error) {
+    console.warn("Nao foi possivel atualizar o menu de condominios:", error);
   }
 }
 
@@ -670,11 +670,30 @@ async function loadClientProfile() {
     return;
   }
 
-  const { data } = await db
+  let { data } = await db
     .from("customers")
     .select("id, name, email, cpf, phone, avatar_url")
     .eq("user_id", user.id)
     .maybeSingle();
+
+  if (!data && user.email) {
+    try {
+      await ensureCustomerProfile({
+        name: user.user_metadata?.name || user.email,
+        email: user.email
+      });
+
+      const { data: linkedData } = await db
+        .from("customers")
+        .select("id, name, email, cpf, phone, avatar_url")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      data = linkedData || null;
+    } catch (error) {
+      console.warn("Nao foi possivel vincular o cliente autenticado ao cadastro:", error);
+    }
+  }
 
   clienteLogado = data || null;
   updateClientSessionUI();
@@ -692,6 +711,59 @@ async function ensureCustomerProfile({ name, email, cpf = "", phone = "" }) {
   });
 
   if (error) throw error;
+}
+
+async function fetchAssignedCondominiums({ limit } = {}) {
+  if (!db || !clienteLogado?.id) return [];
+
+  try {
+    let query = db.rpc("get_my_condominiums", {});
+    if (limit) query = query.limit(limit);
+
+    const { data, error } = await query;
+    if (!error) {
+      return (data || []).map((condo) => ({
+        id: condo.id,
+        name: condo.name,
+        address: condo.address,
+        notes: condo.notes,
+        assigned_at: condo.assigned_at
+      }));
+    }
+
+    if (error.code !== "42883" && error.code !== "PGRST202") {
+      console.warn("Erro ao carregar condominios pela RPC:", error);
+    }
+  } catch (error) {
+    console.warn("Nao foi possivel consultar condominios pela RPC:", error);
+  }
+
+  let fallbackQuery = db
+    .from("customer_condominiums")
+    .select(`
+      condominium_id,
+      assigned_at,
+      condominiums (
+        id,
+        name,
+        address,
+        notes
+      )
+    `)
+    .eq("customer_id", clienteLogado.id)
+    .order("assigned_at", { ascending: false });
+
+  if (limit) fallbackQuery = fallbackQuery.limit(limit);
+
+  const { data, error } = await fallbackQuery;
+  if (error) throw error;
+
+  return (data || [])
+    .map((link) => ({
+      ...(link.condominiums || { id: link.condominium_id, name: "Condominio" }),
+      assigned_at: link.assigned_at
+    }))
+    .filter((condo) => condo?.id);
 }
 
 async function uploadCustomerAvatar(file) {
@@ -928,30 +1000,14 @@ async function renderMyCondominiumsPage() {
     return;
   }
 
-  const { data: links, error } = await db
-    .from("customer_condominiums")
-    .select(`
-      condominium_id,
-      assigned_at,
-      condominiums (
-        id,
-        name,
-        address,
-        notes
-      )
-    `)
-    .eq("customer_id", clienteLogado.id)
-    .order("assigned_at", { ascending: false });
-
-  if (error) {
+  let condominiums = [];
+  try {
+    condominiums = await fetchAssignedCondominiums();
+  } catch (error) {
     console.error("Erro ao carregar condominios do cliente:", error);
     container.innerHTML = '<p class="projects-empty">Nao foi possivel carregar seus condominios.</p>';
     return;
   }
-
-  const condominiums = (links || [])
-    .map((link) => link.condominiums || { id: link.condominium_id, name: "Condominio" })
-    .filter((condo) => condo?.id);
 
   if (!condominiums.length) {
     container.innerHTML = '<p class="projects-empty">Nenhum condominio foi atribuido ao seu login ainda.</p>';

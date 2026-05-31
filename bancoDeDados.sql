@@ -223,6 +223,39 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION public.get_my_condominiums()
+RETURNS TABLE (
+  id BIGINT,
+  name TEXT,
+  address TEXT,
+  notes TEXT,
+  assigned_at TIMESTAMPTZ
+)
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT condo_result.id, condo_result.name, condo_result.address, condo_result.notes, condo_result.assigned_at
+  FROM (
+    SELECT DISTINCT ON (condo.id)
+      condo.id,
+      condo.name,
+      condo.address,
+      condo.notes,
+      cc.assigned_at
+    FROM public.customer_condominiums cc
+    JOIN public.customers c ON c.id = cc.customer_id
+    JOIN public.condominiums condo ON condo.id = cc.condominium_id
+    WHERE (SELECT auth.uid()) IS NOT NULL
+      AND (
+        c.user_id = (SELECT auth.uid())
+        OR lower(c.email) = lower(COALESCE((SELECT auth.jwt()) ->> 'email', ''))
+      )
+    ORDER BY condo.id, cc.assigned_at DESC
+  ) condo_result
+  ORDER BY condo_result.assigned_at DESC, condo_result.name ASC;
+$$;
+
 DROP FUNCTION IF EXISTS public.admin_list_customers();
 
 CREATE FUNCTION public.admin_list_customers()
@@ -324,11 +357,13 @@ END;
 $$;
 
 REVOKE ALL ON FUNCTION public.upsert_customer_profile(TEXT, TEXT, TEXT, TEXT) FROM public;
+REVOKE ALL ON FUNCTION public.get_my_condominiums() FROM public;
 REVOKE ALL ON FUNCTION public.admin_list_customers() FROM public;
 REVOKE ALL ON FUNCTION public.admin_update_customer(BIGINT, TEXT, TEXT, TEXT, TEXT) FROM public;
 REVOKE ALL ON FUNCTION public.admin_delete_customer(BIGINT) FROM public;
 
 GRANT EXECUTE ON FUNCTION public.upsert_customer_profile(TEXT, TEXT, TEXT, TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_my_condominiums() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_list_customers() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_update_customer(BIGINT, TEXT, TEXT, TEXT, TEXT) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_delete_customer(BIGINT) TO authenticated;
