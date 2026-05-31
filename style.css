@@ -284,52 +284,26 @@
         );
       overflow: hidden;
     }
+    .about-frame::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(180deg, rgba(7,16,20,.12) 0%, rgba(7,16,20,.52) 100%),
+        linear-gradient(145deg, rgba(192,142,98,.18) 0%, transparent 48%);
+      pointer-events: none;
+    }
+    .about-image {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: cover;
+      filter: saturate(.72) contrast(1.04);
+    }
     .about-accent {
       position: absolute; bottom: -1.5rem; right: -1.5rem;
       width: 60%; height: 60%;
       border: 1px solid var(--rust); z-index: -1;
-    }
-    .about-accent svg {
-      position: absolute;
-      right: 18%;
-      bottom: 15%;
-      width: 58%;
-      height: 58%;
-      fill: none;
-      stroke: rgba(192,142,98,.55);
-      stroke-width: 1.4;
-      stroke-linecap: round;
-      stroke-linejoin: round;
-      opacity: .72;
-    }
-    .about-illustration {
-      position: absolute;
-      inset: 8% 9% 10%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .about-illustration svg {
-      width: min(82%, 360px);
-      height: auto;
-      fill: none;
-      opacity: .92;
-    }
-    .illustration-shape {
-      stroke: rgba(231,236,236,.38);
-      stroke-width: 2;
-      stroke-linecap: round;
-      stroke-linejoin: round;
-    }
-    .illustration-line {
-      stroke: rgba(120,144,155,.42);
-      stroke-width: 1.2;
-      stroke-linecap: round;
-    }
-    .illustration-accent {
-      stroke: rgba(192,142,98,.66);
-      stroke-width: 1.6;
-      stroke-linecap: round;
     }
     .about-badge {
       position: absolute; bottom: 2.5rem; left: -2.5rem;
@@ -347,8 +321,8 @@
     .big-text {
       position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
       font-family: 'Bebas Neue', sans-serif;
-      font-size: 6rem; color: rgba(120,144,155,.07);
-      white-space: nowrap; pointer-events: none;
+      font-size: 6rem; color: rgba(231,236,236,.12);
+      white-space: nowrap; pointer-events: none; z-index: 1;
     }
     .about-content .section-title { margin-bottom: 2rem; }
     .about-body {
