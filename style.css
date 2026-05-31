@@ -19,6 +19,7 @@
       color: var(--bone);
       overflow-x: hidden;
     }
+    img, svg, video { max-width: 100%; }
 
     /* ── NAV ── */
     .site-nav {
@@ -144,7 +145,7 @@
       animation: fadeUp .9s .2s ease both;
     }
     .hero-actions {
-      margin-top: 2.8rem; display: flex; gap: 1.4rem; align-items: center;
+      margin-top: 2.8rem; display: flex; gap: 1.4rem; align-items: center; flex-wrap: wrap;
       animation: fadeUp .9s .35s ease both;
     }
     .btn-primary {
@@ -751,6 +752,7 @@
       align-items: flex-end;
       justify-content: space-between;
       gap: 2rem;
+      min-width: 0;
     }
     .footer-top {
       display: block;
@@ -775,10 +777,14 @@
       border-top: 0; padding-top: 0;
       display: flex; flex-direction: column; justify-content: flex-end; align-items: flex-end;
       gap: .9rem; margin-left: auto; text-align: right;
-      flex-shrink: 0;
+      flex: 1 1 320px;
+      min-width: 0;
     }
     .footer-copy {
       font-size: .72rem; color: var(--mid); letter-spacing: .06em;
+      max-width: 100%;
+      line-height: 1.55;
+      overflow-wrap: anywhere;
     }
     .footer-social { display: flex; gap: 1rem; }
     .social-link {
@@ -819,6 +825,8 @@
     .client-auth-card,
     .review-card {
       width: 100%; max-width: 510px;
+      max-height: calc(100dvh - 2rem);
+      overflow-y: auto;
       background: #0f1e25;
       border: 1px solid rgba(214, 200, 173, .24);
       border-radius: 8px;
@@ -961,33 +969,101 @@
       .client-session-btn { width: 42px; padding: 0; min-height: 42px; }
       .client-session-btn span { display: none; }
       section { padding: 5rem 2rem; }
-      .hero { padding: 0 2rem 5rem; }
+      .hero { min-height: 92dvh; padding: 8rem 2rem 5rem; align-items: flex-end; }
       .hero-number { display: none; }
+      .hero-title { font-size: clamp(3.4rem, 14vw, 6rem); }
+      .hero-sub { max-width: 36rem; }
       .services-grid { grid-template-columns: 1fr; }
+      .service-card { padding: 2.2rem 1.8rem; }
       #sobre { grid-template-columns: 1fr; gap: 3rem; }
       .about-visual { display: none; }
       .process-steps { grid-template-columns: 1fr 1fr; }
       .process-steps::before { display: none; }
+      .process-step { padding: 0 1.2rem 2rem; }
+      .portfolio-header { align-items: flex-start; flex-direction: column; gap: 1.4rem; }
       .portfolio-grid { grid-template-columns: 1fr; }
-      .portfolio-item:first-child { grid-row: auto; }
+      .portfolio-item:first-child { grid-row: auto; aspect-ratio: 4/3; }
+      .portfolio-item:not(:first-child) { aspect-ratio: 4/3; }
       .projects-page-grid { grid-template-columns: 1fr; }
       .projects-list-header { align-items: flex-start; flex-direction: column; }
       .project-album-modal { padding: 1rem; }
       .album-title { font-size: 1.8rem; }
       .album-controls button { padding: .65rem .75rem; }
       .testimonials-grid { grid-template-columns: 1fr; }
-      footer { align-items: flex-end; gap: 1.25rem; }
+      #depoimentos { padding: 5rem 2rem; }
+      footer { padding: 3rem 2rem 2rem; align-items: flex-end; gap: 1.25rem; }
       .footer-top { width: auto; min-width: 0; }
-      .footer-bottom { flex-direction: column; align-items: flex-end; gap: 1rem; }
+      .footer-bottom { flex: 1 1 0; flex-direction: column; align-items: flex-end; gap: 1rem; }
       .stats-strip { flex-wrap: wrap; padding: 2rem; }
       .client-auth-card { padding: 1.35rem; }
       .client-auth-grid { grid-template-columns: 1fr; gap: 0; }
     }
 
     @media (max-width: 640px) {
-      .site-nav { padding: 1rem 1.1rem; }
-      .logo-mark { width: 56px; height: 56px; }
+      html { scroll-padding-top: 82px; }
+      .site-nav { padding: .85rem 1rem; }
+      .logo-mark { width: 48px; height: 48px; }
       .site-nav .logo-word { display: none; }
+      .nav-cta { padding: .5rem .8rem; font-size: .68rem; }
+      .client-session-btn { width: 40px; min-height: 40px; }
+      section { padding: 4.25rem 1.15rem; }
+      .hero { min-height: 88dvh; padding: 7rem 1.15rem 4rem; }
+      .hero-tag { font-size: .62rem; letter-spacing: .16em; margin-bottom: 1.1rem; }
+      .hero-title { font-size: clamp(3rem, 16vw, 4.6rem); line-height: .98; }
+      .hero-sub { font-size: .94rem; line-height: 1.65; }
+      .hero-actions { width: 100%; gap: .9rem; }
+      .hero-actions .btn-primary,
+      .hero-actions .btn-outline { width: 100%; justify-content: center; }
+      .btn-primary { min-height: 44px; padding: .85rem 1.2rem; clip-path: none; }
+      .scroll-hint { display: none; }
+      .stats-strip { display: grid; grid-template-columns: 1fr 1fr; gap: 1.4rem; padding: 1.7rem 1rem; }
+      .stat-num { font-size: 2.35rem; }
+      .stat-label { font-size: .58rem; letter-spacing: .12em; }
+      .section-title { font-size: clamp(2.4rem, 13vw, 3.6rem); }
+      .services-header { margin-bottom: 2.5rem; }
+      .service-card { padding: 2rem 1.35rem; }
+      .process-steps { grid-template-columns: 1fr; gap: 1.8rem; }
+      .process-step { padding: 0; }
+      .portfolio-thumb { padding: 1.25rem; }
+      .portfolio-name { font-size: 1.35rem; }
+      .projects-hero { min-height: 58dvh; padding-top: 7rem; }
+      .projects-list-header { margin-bottom: 2rem; }
+      .project-card-body { padding: 1.1rem; }
+      .album-controls { align-items: stretch; flex-wrap: wrap; }
+      .album-counter { width: 100%; order: -1; text-align: center; }
+      .album-controls button { flex: 1 1 0; min-width: 0; }
+      .testimonial-card { padding: 1.7rem; }
+      .contact-desc { font-size: .92rem; }
+      footer { padding: 2.5rem 1.15rem 1.5rem; gap: 1rem; }
+      .footer-brand .logo-mark { width: 54px; height: 54px; }
+      .footer-tagline { display: none; }
+      .footer-bottom { flex-basis: auto; }
+      .footer-copy { max-width: calc(100vw - 8rem); font-size: .62rem; letter-spacing: .04em; }
+      .footer-social { gap: .65rem; }
+      .social-link { width: 32px; height: 32px; }
+      .client-auth-overlay,
+      .review-overlay { align-items: flex-start; padding: .75rem; overflow-y: auto; }
+      .client-auth-card,
+      .review-card { padding: 1.15rem; max-height: none; }
+      .client-auth-head h2 { font-size: 1.65rem; }
+    }
+
+    @media (max-width: 420px) {
+      .site-nav { gap: .75rem; }
+      .nav-actions { gap: .45rem; }
+      .nav-cta { max-width: 9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .hero-title { font-size: clamp(2.75rem, 15vw, 3.7rem); }
+      .hero-sub { font-size: .88rem; }
+      .stats-strip { grid-template-columns: 1fr; }
+      .footer-copy { max-width: calc(100vw - 7.25rem); }
+      .footer-brand .logo-word { display: none; }
+    }
+
+    @media (max-width: 360px) {
+      .nav-cta { display: none; }
+      .hero-actions .btn-primary,
+      .hero-actions .btn-outline { font-size: .72rem; letter-spacing: .1em; }
+      .footer-copy { max-width: calc(100vw - 5.5rem); }
     }
 
 /* ============================================================
@@ -1020,7 +1096,7 @@
 .account-panel {
   display: flex;
   width: min(960px, 100%);
-  height: min(680px, calc(100vh - 2rem));
+  height: min(680px, calc(100dvh - 2rem));
   background: #071014;
   border: 1px solid rgba(214, 200, 173, .18);
   border-radius: 12px;
@@ -1554,9 +1630,16 @@
 
 /* ── RESPONSIVO ── */
 @media (max-width: 720px) {
+  .account-panel-overlay {
+    align-items: flex-start;
+    padding: .75rem;
+    overflow-y: auto;
+  }
+
   .account-panel {
     flex-direction: column;
-    height: calc(100vh - 1.5rem);
+    min-height: calc(100dvh - 1.5rem);
+    height: auto;
     border-radius: 10px;
   }
 
@@ -1612,5 +1695,48 @@
 
   .account-main-header {
     padding: 1rem 1.1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .account-panel-overlay { padding: 0; }
+  .account-panel {
+    min-height: 100dvh;
+    border-radius: 0;
+    border-left: 0;
+    border-right: 0;
+  }
+  .account-sidebar { padding: .8rem; }
+  .account-sidebar-header {
+    padding: .7rem;
+    gap: .65rem;
+  }
+  .account-avatar-lg {
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
+  }
+  .account-main-header h2 { font-size: 1.35rem; }
+  .account-photo-field {
+    align-items: flex-start;
+    padding: .85rem;
+  }
+  .account-photo-preview {
+    width: 56px;
+    height: 56px;
+    min-width: 56px;
+  }
+  .account-form-actions,
+  .account-panel-overlay .account-btn-save,
+  .account-panel-overlay .account-btn-danger {
+    width: 100%;
+  }
+  .account-panel-overlay .account-btn-save,
+  .account-panel-overlay .account-btn-danger {
+    min-height: 44px;
+  }
+  .account-review-header {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
