@@ -719,7 +719,7 @@ async function loadAccountDocuments() {
             <p>${escapeHtml(condo?.name || "Condominio")}${dateLabel ? ` - ${dateLabel}` : ""}</p>
             <small>${escapeHtml(fileName)}</small>
           </div>
-          ${signedUrl ? `<a class="account-document-download" href="${escapeAttr(signedUrl)}" download="${escapeAttr(fileName)}">Baixar</a>` : '<span class="account-document-unavailable">Indisponivel</span>'}
+          ${signedUrl ? `<a class="account-document-download" href="${escapeAttr(signedUrl)}" download="${escapeAttr(fileName)}">Baixar</a>` : '<span class="account-document-unavailable">Sem permissao</span>'}
         </article>
       `;
     }));
@@ -1204,7 +1204,7 @@ async function renderMyCondominiumsPage() {
           <span>${escapeHtml(doc.document_type)}</span>
           <h3>${escapeHtml(doc.title)}</h3>
           <p>${escapeHtml(fileName)}</p>
-          ${signedUrl ? `<a class="btn-outline" href="${escapeAttr(signedUrl)}" download="${escapeAttr(fileName)}">Baixar documento</a>` : '<p class="my-condo-empty">Arquivo indisponivel para download.</p>'}
+          ${signedUrl ? `<a class="btn-outline" href="${escapeAttr(signedUrl)}" download="${escapeAttr(fileName)}">Baixar documento</a>` : '<p class="my-condo-empty">Arquivo sem permissao de download.</p>'}
         </article>
       `;
     }))).join("") || '<p class="my-condo-empty">Nenhum laudo, RT ou documento registrado.</p>';

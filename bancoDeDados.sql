@@ -777,9 +777,10 @@ USING (
   bucket_id = 'condominium-documents'
   AND EXISTS (
     SELECT 1
-    FROM public.customer_condominiums cc
+    FROM public.condominium_documents doc
+    JOIN public.customer_condominiums cc ON cc.condominium_id = doc.condominium_id
     JOIN public.customers c ON c.id = cc.customer_id
-    WHERE cc.condominium_id::text = (storage.foldername(name))[1]
+    WHERE doc.file_path = storage.objects.name
       AND c.user_id = (SELECT auth.uid())
   )
 );
