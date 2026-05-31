@@ -25,6 +25,10 @@ function escapeHtml(value) {
     .replace(/'/g, "&#039;");
 }
 
+function escapeAttr(value) {
+  return escapeHtml(value).replace(/`/g, "&#096;");
+}
+
 function normalizeEmail(value) {
   return (value || "").trim().toLowerCase();
 }
@@ -527,6 +531,11 @@ async function loadAccountReviews() {
   if (!container || !db) return;
 
   container.innerHTML = '<div class="account-reviews-loading">Carregando avaliações...</div>';
+
+  if (submitButton) {
+    submitButton.disabled = true;
+    submitButton.textContent = "Entrando...";
+  }
 
   try {
     const { data: sessionData } = await db.auth.getSession();
@@ -1328,6 +1337,7 @@ document.getElementById("formClienteLogin")?.addEventListener("submit", async fu
   const credential = document.getElementById("cliente-login-id").value.trim();
   const password = document.getElementById("cliente-login-pass").value;
   const errorBox = document.getElementById("clienteLoginError");
+  const submitButton = this.querySelector('button[type="submit"]');
   errorBox.textContent = "";
 
   if (!credential || !password) {
@@ -1344,6 +1354,7 @@ document.getElementById("formClienteLogin")?.addEventListener("submit", async fu
 
     const { error } = await db.auth.signInWithPassword({ email, password });
     if (error) {
+      console.error("Erro Supabase no login do cliente:", error);
       errorBox.textContent = "Cliente ou senha inválidos.";
       return;
     }
@@ -1358,9 +1369,15 @@ document.getElementById("formClienteLogin")?.addEventListener("submit", async fu
       return;
     }
     closeClientAuth();
+    await renderMyCondominiumsPage();
   } catch (error) {
     console.error("Erro no login do cliente:", error);
     errorBox.textContent = "Não foi possível entrar agora.";
+  } finally {
+    if (submitButton) {
+      submitButton.disabled = false;
+      submitButton.textContent = "Entrar como cliente";
+    }
   }
 });
 
