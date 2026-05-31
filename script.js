@@ -54,6 +54,24 @@ function getFirstName(name) {
   return (name || "Cliente").trim().split(" ")[0] || "Cliente";
 }
 
+function getInitials(name) {
+  return (name || "Cliente")
+    .trim()
+    .split(/\s+/)
+    .map((part) => part[0])
+    .join("")
+    .substring(0, 2)
+    .toUpperCase() || "CL";
+}
+
+function renderAvatarContent(name, avatarUrl = "", className = "") {
+  if (avatarUrl) {
+    return `<img class="${className}" src="${escapeHtml(avatarUrl)}" alt="Foto de ${escapeHtml(name || "cliente")}">`;
+  }
+
+  return escapeHtml(getInitials(name));
+}
+
 function updateClientSessionUI() {
   const btn = document.getElementById("clientSessionBtn");
   if (!btn) return;
@@ -202,6 +220,14 @@ function buildAccountPanel() {
           <p class="account-section-desc">Mantenha seus dados atualizados para um atendimento mais ágil.</p>
 
           <form id="accountProfileForm" class="account-form" novalidate>
+            <div class="account-photo-field">
+              <div class="account-photo-preview" id="accountPhotoPreview">CL</div>
+              <div class="account-photo-copy">
+                <label for="accountPhoto">Foto do perfil</label>
+                <span class="account-field-hint">Use uma imagem JPG, PNG ou WebP com ate 2 MB.</span>
+                <input type="file" id="accountPhoto" accept="image/png,image/jpeg,image/webp">
+              </div>
+            </div>
             <div class="account-field-group">
               <div class="account-field">
                 <label for="accountNome">Nome completo</label>
@@ -305,6 +331,26 @@ function buildAccountPanel() {
   panel.querySelector("#accountPhone").addEventListener("input", function () {
     this.value = formatPhone(this.value);
   });
+  panel.querySelector("#accountPhoto").addEventListener("change", function () {
+    const file = this.files?.[0];
+    const preview = document.getElementById("accountPhotoPreview");
+    const feedback = document.getElementById("accountProfileFeedback");
+    if (feedback) {
+      feedback.textContent = "";
+      feedback.className = "account-feedback";
+    }
+    if (!file || !preview) return;
+    if (!file.type.startsWith("image/") || file.size > 2 * 1024 * 1024) {
+      this.value = "";
+      if (feedback) {
+        feedback.textContent = "Escolha uma imagem JPG, PNG ou WebP com ate 2 MB.";
+        feedback.classList.add("error");
+      }
+      return;
+    }
+    const objectUrl = URL.createObjectURL(file);
+    preview.innerHTML = `<img src="${objectUrl}" alt="Previa da foto do perfil">`;
+  });
 
   // Profile form
   panel.querySelector("#accountProfileForm").addEventListener("submit", async (e) => {
@@ -317,8 +363,15 @@ function buildAccountPanel() {
     const cpf = document.getElementById("accountCpf").value.trim();
     const phone = document.getElementById("accountPhone").value.trim();
     const email = clienteLogado?.email || "";
+    const photoInput = document.getElementById("accountPhoto");
+    const photoFile = photoInput?.files?.[0] || null;
 
     if (!name) { feedback.textContent = "Informe seu nome."; feedback.classList.add("error"); return; }
+    if (photoFile && (!photoFile.type.startsWith("image/") || photoFile.size > 2 * 1024 * 1024)) {
+      feedback.textContent = "Escolha uma imagem JPG, PNG ou WebP com ate 2 MB.";
+      feedback.classList.add("error");
+      return;
+    }
 
     const btn = e.target.querySelector("button[type=submit]");
     btn.disabled = true;
@@ -331,7 +384,30 @@ function buildAccountPanel() {
       });
       if (error) throw error;
       await loadClientProfile();
+      let avatarUrl = clienteLogado?.avatar_url || "";
+      if (photoFile) {
+        avatarUrl = await uploadCustomerAvatar(photoFile);
+        const { error: avatarError } = await db
+          .from("customers")
+          .update({ avatar_url: avatarUrl })
+          .eq("id", clienteLogado.id);
+        if (avatarError) throw avatarError;
+      }
+      await loadClientProfile();
+      if (clienteLogado?.id) {
+        await db
+          .from("reviews")
+          .update({
+            reviewer_name: clienteLogado.name || name,
+            reviewer_avatar_url: clienteLogado.avatar_url || avatarUrl || null
+          })
+          .eq("customer_id", clienteLogado.id);
+      }
       populateAccountPanel();
+      const testimonialsData = await fetchTestimonialsData();
+      renderTestimonials(testimonialsData);
+      setupRevealAnimation();
+      if (photoInput) photoInput.value = "";
       feedback.textContent = "Perfil atualizado com sucesso!";
       feedback.classList.add("success");
     } catch (err) {
@@ -390,13 +466,15 @@ function populateAccountPanel() {
 
   const name = clienteLogado.name || "Cliente";
   const email = clienteLogado.email || "—";
-  const initials = name.split(" ").map(n => n[0]).join("").substring(0, 2).toUpperCase();
+  const avatarUrl = clienteLogado.avatar_url || "";
 
   const avatarEl = document.getElementById("accountAvatarSidebar");
+  const photoPreviewEl = document.getElementById("accountPhotoPreview");
   const nameEl = document.getElementById("accountSidebarName");
   const emailEl = document.getElementById("accountSidebarEmail");
 
-  if (avatarEl) avatarEl.textContent = initials;
+  if (avatarEl) avatarEl.innerHTML = renderAvatarContent(name, avatarUrl, "account-avatar-img");
+  if (photoPreviewEl) photoPreviewEl.innerHTML = renderAvatarContent(name, avatarUrl, "account-avatar-img");
   if (nameEl) nameEl.textContent = getFirstName(name);
   if (emailEl) emailEl.textContent = email;
 
@@ -484,7 +562,7 @@ async function loadClientProfile() {
 
   const { data } = await db
     .from("customers")
-    .select("name, email, cpf, phone")
+    .select("id, name, email, cpf, phone, avatar_url")
     .eq("user_id", user.id)
     .maybeSingle();
 
@@ -506,6 +584,27 @@ async function ensureCustomerProfile({ name, email, cpf = "", phone = "" }) {
   });
 
   if (error) throw error;
+}
+
+async function uploadCustomerAvatar(file) {
+  const { data: sessionData } = await db.auth.getSession();
+  const user = sessionData?.session?.user;
+  if (!user) throw new Error("Usuario nao autenticado.");
+
+  const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "");
+  const path = `${user.id}/profile-${Date.now()}.${ext || "jpg"}`;
+  const { error } = await db.storage
+    .from("avatars")
+    .upload(path, file, {
+      cacheControl: "3600",
+      contentType: file.type,
+      upsert: false
+    });
+
+  if (error) throw error;
+
+  const { data } = db.storage.from("avatars").getPublicUrl(path);
+  return data.publicUrl;
 }
 
 // ===============================
@@ -569,9 +668,8 @@ async function fetchTestimonialsData() {
       .select(`
         rating,
         comment,
-        customers (
-          name
-        ),
+        reviewer_name,
+        reviewer_avatar_url,
         projects (
           name
         )
@@ -581,19 +679,13 @@ async function fetchTestimonialsData() {
     if (error) throw error;
 
     return data.map((avaliacao) => {
-      const nome = avaliacao.customers?.name || "Cliente";
-
-      const iniciais = nome
-        .split(" ")
-        .map((n) => n[0])
-        .join("")
-        .substring(0, 2)
-        .toUpperCase();
+      const nome = avaliacao.reviewer_name || "Cliente";
 
       return {
         stars: avaliacao.rating || 5,
         text: avaliacao.comment || "",
-        avatar: iniciais,
+        avatar: getInitials(nome),
+        avatarUrl: avaliacao.reviewer_avatar_url || "",
         name: nome,
         role: avaliacao.projects?.name
           ? `Projeto: ${avaliacao.projects.name}`
@@ -818,7 +910,7 @@ function renderTestimonials(data) {
 
         <div class="testimonial-author">
           <div class="author-avatar">
-            ${escapeHtml(item.avatar)}
+            ${renderAvatarContent(item.name, item.avatarUrl, "author-avatar-img")}
           </div>
 
           <div>
@@ -1169,8 +1261,23 @@ document.getElementById("reviewForm")?.addEventListener("submit", async function
   }
 
   try {
+    if (!clienteLogado.id) {
+      await loadClientProfile();
+    }
+
+    if (!clienteLogado?.id) {
+      errorBox.textContent = "Nao foi possivel localizar seu cadastro.";
+      return;
+    }
+
     const { error } = await db.from("reviews").insert([
-      { rating, comment }
+      {
+        customer_id: clienteLogado.id,
+        rating,
+        comment,
+        reviewer_name: clienteLogado.name || "Cliente",
+        reviewer_avatar_url: clienteLogado.avatar_url || null
+      }
     ]);
 
     if (error) throw error;

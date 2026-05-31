@@ -716,7 +716,13 @@
       background: linear-gradient(135deg, var(--earth), var(--rust));
       display: flex; align-items: center; justify-content: center;
       font-family: 'Bebas Neue', sans-serif; font-size: 1rem; color: #fff;
-      flex-shrink: 0;
+      flex-shrink: 0; overflow: hidden;
+    }
+    .author-avatar-img {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: cover;
     }
     .author-name { font-size: .82rem; letter-spacing: .06em; color: var(--bone); }
     .author-role { font-size: .72rem; color: var(--mid); margin-top: .1rem; }
@@ -763,7 +769,8 @@
     .footer-col li a:hover { opacity: .85; color: var(--gold); }
     .footer-bottom {
       border-top: 1px solid rgba(120,144,155,.1); padding-top: 1.5rem;
-      display: flex; justify-content: space-between; align-items: center;
+      display: flex; flex-direction: column; justify-content: flex-end; align-items: flex-end;
+      gap: .9rem; margin-left: auto; text-align: right;
     }
     .footer-copy {
       font-size: .72rem; color: var(--mid); letter-spacing: .06em;
@@ -965,7 +972,7 @@
       .album-controls button { padding: .65rem .75rem; }
       .testimonials-grid { grid-template-columns: 1fr; }
       .footer-top { grid-template-columns: 1fr 1fr; }
-      .footer-bottom { flex-direction: column; align-items: flex-start; gap: 1rem; }
+      .footer-bottom { flex-direction: column; align-items: flex-end; gap: 1rem; }
       .stats-strip { flex-wrap: wrap; padding: 2rem; }
       .client-auth-card { padding: 1.35rem; }
       .client-auth-grid { grid-template-columns: 1fr; gap: 0; }
@@ -1055,6 +1062,14 @@
   font-size: 1rem;
   color: #fff;
   letter-spacing: .05em;
+  overflow: hidden;
+}
+
+.account-avatar-img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
 }
 
 .account-sidebar-info {
@@ -1259,6 +1274,56 @@
   gap: .9rem;
   margin: 0;
   padding: 0;
+}
+
+.account-photo-field {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid rgba(120,144,155,.16);
+  border-radius: 8px;
+  background: rgba(15,30,37,.48);
+}
+
+.account-photo-preview {
+  width: 64px;
+  height: 64px;
+  min-width: 64px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #78909B, #C08E62);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  color: #fff;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.25rem;
+  letter-spacing: .05em;
+}
+
+.account-photo-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: .42rem;
+}
+
+.account-photo-copy label {
+  font-family: 'DM Sans', sans-serif;
+  font-size: .7rem;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: rgba(231,236,236,.65);
+}
+
+.account-photo-copy input[type="file"] {
+  width: 100%;
+  max-width: 280px;
+  color: rgba(231,236,236,.65);
+  font-family: 'DM Sans', sans-serif;
+  font-size: .72rem;
 }
 
 .account-field-group {

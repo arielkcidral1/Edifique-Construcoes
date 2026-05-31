@@ -7,12 +7,14 @@ CREATE TABLE IF NOT EXISTS public.customers (
   email TEXT NOT NULL UNIQUE,
   phone TEXT,
   cpf TEXT,
+  avatar_url TEXT,
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
 ALTER TABLE public.customers
   ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
   ADD COLUMN IF NOT EXISTS cpf TEXT,
+  ADD COLUMN IF NOT EXISTS avatar_url TEXT,
   ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT now();
 
 CREATE UNIQUE INDEX IF NOT EXISTS customers_user_id_key
@@ -47,14 +49,27 @@ CREATE TABLE IF NOT EXISTS public.reviews (
   project_id BIGINT REFERENCES public.projects(id) ON DELETE CASCADE,
   rating INTEGER CHECK (rating >= 1 AND rating <= 5),
   comment TEXT,
+  reviewer_name TEXT,
+  reviewer_avatar_url TEXT,
   created_at TIMESTAMPTZ DEFAULT now()
 );
+
+ALTER TABLE public.reviews
+  ADD COLUMN IF NOT EXISTS reviewer_name TEXT,
+  ADD COLUMN IF NOT EXISTS reviewer_avatar_url TEXT;
 
 CREATE INDEX IF NOT EXISTS reviews_customer_id_idx
   ON public.reviews(customer_id);
 
 CREATE INDEX IF NOT EXISTS reviews_project_id_idx
   ON public.reviews(project_id);
+
+UPDATE public.reviews r
+SET
+  reviewer_name = COALESCE(NULLIF(r.reviewer_name, ''), c.name),
+  reviewer_avatar_url = COALESCE(NULLIF(r.reviewer_avatar_url, ''), c.avatar_url)
+FROM public.customers c
+WHERE r.customer_id = c.id;
 
 CREATE OR REPLACE FUNCTION private.handle_new_user_customer()
 RETURNS TRIGGER
@@ -63,19 +78,21 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-  INSERT INTO public.customers (user_id, name, email, cpf, phone)
+  INSERT INTO public.customers (user_id, name, email, cpf, phone, avatar_url)
   VALUES (
     NEW.id,
     COALESCE(NULLIF(NEW.raw_user_meta_data ->> 'name', ''), NEW.email, 'Cliente'),
     COALESCE(NEW.email, ''),
     NULLIF(NEW.raw_user_meta_data ->> 'cpf', ''),
-    NULLIF(NEW.raw_user_meta_data ->> 'phone', '')
+    NULLIF(NEW.raw_user_meta_data ->> 'phone', ''),
+    NULLIF(NEW.raw_user_meta_data ->> 'avatar_url', '')
   )
   ON CONFLICT (email) DO UPDATE SET
     user_id = COALESCE(public.customers.user_id, EXCLUDED.user_id),
     name = EXCLUDED.name,
     cpf = COALESCE(EXCLUDED.cpf, public.customers.cpf),
-    phone = COALESCE(EXCLUDED.phone, public.customers.phone);
+    phone = COALESCE(EXCLUDED.phone, public.customers.phone),
+    avatar_url = COALESCE(EXCLUDED.avatar_url, public.customers.avatar_url);
 
   RETURN NEW;
 EXCEPTION
@@ -164,13 +181,16 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION public.admin_list_customers()
+DROP FUNCTION IF EXISTS public.admin_list_customers();
+
+CREATE FUNCTION public.admin_list_customers()
 RETURNS TABLE (
   id BIGINT,
   name TEXT,
   email TEXT,
   phone TEXT,
   cpf TEXT,
+  avatar_url TEXT,
   created_at TIMESTAMPTZ
 )
 LANGUAGE plpgsql
@@ -183,7 +203,7 @@ BEGIN
   END IF;
 
   RETURN QUERY
-  SELECT c.id, c.name, c.email, c.phone, c.cpf, c.created_at
+  SELECT c.id, c.name, c.email, c.phone, c.cpf, c.avatar_url, c.created_at
   FROM public.customers c
   ORDER BY c.created_at DESC NULLS LAST, c.id DESC;
 END;
@@ -242,20 +262,22 @@ GRANT EXECUTE ON FUNCTION public.admin_list_customers() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_update_customer(BIGINT, TEXT, TEXT, TEXT, TEXT) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_delete_customer(BIGINT) TO authenticated;
 
-INSERT INTO public.customers (user_id, name, email, cpf, phone)
+INSERT INTO public.customers (user_id, name, email, cpf, phone, avatar_url)
 SELECT
   users.id,
   COALESCE(NULLIF(users.raw_user_meta_data ->> 'name', ''), users.email, 'Cliente'),
   COALESCE(users.email, ''),
   NULLIF(users.raw_user_meta_data ->> 'cpf', ''),
-  NULLIF(users.raw_user_meta_data ->> 'phone', '')
+  NULLIF(users.raw_user_meta_data ->> 'phone', ''),
+  NULLIF(users.raw_user_meta_data ->> 'avatar_url', '')
 FROM auth.users
 WHERE users.email IS NOT NULL
 ON CONFLICT (email) DO UPDATE SET
   user_id = COALESCE(public.customers.user_id, EXCLUDED.user_id),
   name = EXCLUDED.name,
   cpf = COALESCE(EXCLUDED.cpf, public.customers.cpf),
-  phone = COALESCE(EXCLUDED.phone, public.customers.phone);
+  phone = COALESCE(EXCLUDED.phone, public.customers.phone),
+  avatar_url = COALESCE(EXCLUDED.avatar_url, public.customers.avatar_url);
 
 ALTER TABLE public.customers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.projects ENABLE ROW LEVEL SECURITY;
@@ -271,7 +293,7 @@ GRANT SELECT ON TABLE public.projects TO anon, authenticated;
 GRANT SELECT ON TABLE public.project_photos TO anon, authenticated;
 GRANT SELECT ON TABLE public.reviews TO anon, authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.customers TO authenticated;
-GRANT INSERT ON TABLE public.reviews TO authenticated;
+GRANT INSERT, UPDATE ON TABLE public.reviews TO authenticated;
 GRANT INSERT, UPDATE, DELETE ON TABLE public.projects TO authenticated;
 GRANT INSERT, UPDATE, DELETE ON TABLE public.project_photos TO authenticated;
 GRANT DELETE ON TABLE public.reviews TO authenticated;
@@ -302,6 +324,7 @@ DROP POLICY IF EXISTS "Admins can delete project photos" ON public.project_photo
 DROP POLICY IF EXISTS "Admins have full access to project photos" ON public.project_photos;
 DROP POLICY IF EXISTS "Public reviews are readable" ON public.reviews;
 DROP POLICY IF EXISTS "Authenticated users can create reviews" ON public.reviews;
+DROP POLICY IF EXISTS "Customers can update their own review identity" ON public.reviews;
 DROP POLICY IF EXISTS "Admins can delete reviews" ON public.reviews;
 DROP POLICY IF EXISTS "Admins have full access to reviews" ON public.reviews;
 
@@ -432,7 +455,36 @@ CREATE POLICY "Authenticated users can create reviews"
 ON public.reviews
 FOR INSERT
 TO authenticated
-WITH CHECK (rating BETWEEN 1 AND 5);
+WITH CHECK (
+  rating BETWEEN 1 AND 5
+  AND EXISTS (
+    SELECT 1
+    FROM public.customers c
+    WHERE c.id = customer_id
+      AND c.user_id = (SELECT auth.uid())
+  )
+);
+
+CREATE POLICY "Customers can update their own review identity"
+ON public.reviews
+FOR UPDATE
+TO authenticated
+USING (
+  EXISTS (
+    SELECT 1
+    FROM public.customers c
+    WHERE c.id = customer_id
+      AND c.user_id = (SELECT auth.uid())
+  )
+)
+WITH CHECK (
+  EXISTS (
+    SELECT 1
+    FROM public.customers c
+    WHERE c.id = customer_id
+      AND c.user_id = (SELECT auth.uid())
+  )
+);
 
 CREATE POLICY "Admins can delete reviews"
 ON public.reviews
@@ -444,11 +496,19 @@ INSERT INTO storage.buckets (id, name, public)
 VALUES ('portfolio', 'portfolio', true)
 ON CONFLICT (id) DO UPDATE SET public = EXCLUDED.public;
 
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('avatars', 'avatars', true)
+ON CONFLICT (id) DO UPDATE SET public = EXCLUDED.public;
+
 DROP POLICY IF EXISTS "Public portfolio photos are visible" ON storage.objects;
 DROP POLICY IF EXISTS "Admins can upload portfolio photos" ON storage.objects;
 DROP POLICY IF EXISTS "Admins can update portfolio photos" ON storage.objects;
 DROP POLICY IF EXISTS "Admins can delete portfolio photos" ON storage.objects;
 DROP POLICY IF EXISTS "Admins have full access to portfolio photos" ON storage.objects;
+DROP POLICY IF EXISTS "Public avatars are visible" ON storage.objects;
+DROP POLICY IF EXISTS "Customers can upload own avatars" ON storage.objects;
+DROP POLICY IF EXISTS "Customers can update own avatars" ON storage.objects;
+DROP POLICY IF EXISTS "Customers can delete own avatars" ON storage.objects;
 
 CREATE POLICY "Admins have full access to portfolio photos"
 ON storage.objects
@@ -475,3 +535,40 @@ ON storage.objects
 FOR DELETE
 TO authenticated
 USING (bucket_id = 'portfolio' AND ((SELECT auth.jwt()) ->> 'email') = 'admin@edifique.com');
+
+CREATE POLICY "Public avatars are visible"
+ON storage.objects
+FOR SELECT
+TO anon, authenticated
+USING (bucket_id = 'avatars');
+
+CREATE POLICY "Customers can upload own avatars"
+ON storage.objects
+FOR INSERT
+TO authenticated
+WITH CHECK (
+  bucket_id = 'avatars'
+  AND (storage.foldername(name))[1] = (SELECT auth.uid())::text
+);
+
+CREATE POLICY "Customers can update own avatars"
+ON storage.objects
+FOR UPDATE
+TO authenticated
+USING (
+  bucket_id = 'avatars'
+  AND (storage.foldername(name))[1] = (SELECT auth.uid())::text
+)
+WITH CHECK (
+  bucket_id = 'avatars'
+  AND (storage.foldername(name))[1] = (SELECT auth.uid())::text
+);
+
+CREATE POLICY "Customers can delete own avatars"
+ON storage.objects
+FOR DELETE
+TO authenticated
+USING (
+  bucket_id = 'avatars'
+  AND (storage.foldername(name))[1] = (SELECT auth.uid())::text
+);
