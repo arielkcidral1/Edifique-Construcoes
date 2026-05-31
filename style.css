@@ -95,7 +95,7 @@
 
     /* ── HERO ── */
     .hero {
-      min-height: 100vh; display: flex; align-items: flex-end;
+      min-height: 100dvh; display: flex; align-items: flex-end;
       position: relative; overflow: hidden; padding: 0 4rem 6rem;
     }
     .hero-bg {
@@ -581,7 +581,7 @@
     .project-album-overlay.open { display: flex; }
     .project-album-modal {
       width: min(980px, 100%);
-      max-height: calc(100vh - 2rem);
+      max-height: calc(100dvh - 2rem);
       display: flex;
       flex-direction: column;
       gap: 1rem;
@@ -827,6 +827,7 @@
       width: 100%; max-width: 510px;
       max-height: calc(100dvh - 2rem);
       overflow-y: auto;
+      overscroll-behavior: contain;
       background: #0f1e25;
       border: 1px solid rgba(214, 200, 173, .24);
       border-radius: 8px;
@@ -1029,6 +1030,9 @@
       .projects-hero { min-height: 58dvh; padding-top: 7rem; }
       .projects-list-header { margin-bottom: 2rem; }
       .project-card-body { padding: 1.1rem; }
+      .project-album-overlay { align-items: flex-start; overflow-y: auto; }
+      .project-album-modal { max-height: none; }
+      .album-photo { max-height: 58dvh; }
       .album-controls { align-items: stretch; flex-wrap: wrap; }
       .album-counter { width: 100%; order: -1; text-align: center; }
       .album-controls button { flex: 1 1 0; min-width: 0; }
@@ -1057,6 +1061,8 @@
       .stats-strip { grid-template-columns: 1fr; }
       .footer-copy { max-width: calc(100vw - 7.25rem); }
       .footer-brand .logo-word { display: none; }
+      .client-auth-head { align-items: center; }
+      .client-auth-kicker { font-size: .6rem; letter-spacing: .11em; }
     }
 
     @media (max-width: 360px) {
@@ -1064,6 +1070,23 @@
       .hero-actions .btn-primary,
       .hero-actions .btn-outline { font-size: .72rem; letter-spacing: .1em; }
       .footer-copy { max-width: calc(100vw - 5.5rem); }
+      .footer-social { gap: .45rem; }
+      .social-link { width: 30px; height: 30px; }
+      .client-auth-tab { font-size: .74rem; letter-spacing: .05em; }
+      .modal-close { width: 32px; height: 32px; }
+    }
+
+    @media (max-height: 520px) and (orientation: landscape) {
+      .site-nav { position: absolute; }
+      .hero { min-height: auto; padding-top: 6rem; }
+      .client-auth-overlay,
+      .review-overlay,
+      .account-panel-overlay,
+      .project-album-overlay { align-items: flex-start; overflow-y: auto; }
+      .client-auth-card,
+      .review-card,
+      .account-panel,
+      .project-album-modal { max-height: none; }
     }
 
 /* ============================================================
@@ -1406,6 +1429,7 @@
   color: rgba(231,236,236,.65);
   font-family: 'DM Sans', sans-serif;
   font-size: .72rem;
+  min-width: 0;
 }
 
 .account-field-group {
@@ -1720,6 +1744,7 @@
   .account-photo-field {
     align-items: flex-start;
     padding: .85rem;
+    gap: .75rem;
   }
   .account-photo-preview {
     width: 56px;
