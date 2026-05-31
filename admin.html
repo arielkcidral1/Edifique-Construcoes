@@ -116,7 +116,7 @@
         <div class="card">
           <div class="form-group">
             <label>Nome do Projeto</label>
-            <input type="text" id="projName" placeholder="Ex: Condomínio Residencial Y" />
+            <input type="text" id="projName" placeholder="Ex: Reforma Telhado" />
           </div>
           <div class="form-group">
             <label>Condominio vinculado (Opcional)</label>
@@ -531,7 +531,7 @@
         select.innerHTML = `<option value="">${emptyLabel}</option>` +
           condominios.map(condo => `<option value="${condo.id}">${escapeHtml(condo.name)}</option>`).join('');
       } catch {
-        select.innerHTML = '<option value="">Erro ao carregar condominios</option>';
+        select.innerHTML = '<option value="">Nenhum condominio cadastrado</option>';
       }
     }
 
@@ -587,7 +587,7 @@
         .order('name', { ascending: true });
 
       if (error) {
-        container.innerHTML = "Erro ao carregar condominios.";
+        container.innerHTML = "Nenhum condominio cadastrado.";
         return;
       }
 
