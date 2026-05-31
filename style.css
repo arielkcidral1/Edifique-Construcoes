@@ -704,7 +704,14 @@
       font-family: 'Cormorant Garamond', serif;
       font-size: 6rem; color: rgba(192,142,98,.14); line-height: 1;
     }
-    .testimonial-stars { color: var(--gold); font-size: .9rem; margin-bottom: 1.2rem; }
+    .testimonial-stars { color: var(--gold); font-size: .9rem; margin-bottom: .45rem; }
+    .testimonial-date {
+      color: var(--mid);
+      font-size: .72rem;
+      font-weight: 800;
+      letter-spacing: .08em;
+      margin-bottom: 1.2rem;
+    }
     .testimonial-text {
       font-size: .9rem; line-height: 1.75; color: var(--cream);
       opacity: .65; font-weight: 300; margin-bottom: 1.6rem;

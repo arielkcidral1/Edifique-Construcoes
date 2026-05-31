@@ -56,7 +56,8 @@ CREATE TABLE IF NOT EXISTS public.reviews (
 
 ALTER TABLE public.reviews
   ADD COLUMN IF NOT EXISTS reviewer_name TEXT,
-  ADD COLUMN IF NOT EXISTS reviewer_avatar_url TEXT;
+  ADD COLUMN IF NOT EXISTS reviewer_avatar_url TEXT,
+  ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT now();
 
 CREATE INDEX IF NOT EXISTS reviews_customer_id_idx
   ON public.reviews(customer_id);

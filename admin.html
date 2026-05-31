@@ -181,6 +181,18 @@
       location.reload();
     }
 
+    function formatReviewDate(value) {
+      if (!value) return "";
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return "";
+
+      return date.toLocaleDateString("pt-BR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric"
+      });
+    }
+
     // ----------------------------
     // GERENCIAMENTO DE AVALIAÇÕES
     // ----------------------------
@@ -195,6 +207,7 @@
         <div class="review-item">
           <div>
             <strong>Nota: ${rev.rating}/5</strong>
+            <div style="margin-top: 0.25rem; color: #999; font-size: 0.85rem;">${formatReviewDate(rev.created_at)}</div>
             <p style="margin: 0.5rem 0 0; color: #ccc;">${rev.comment || 'Sem comentário'}</p>
           </div>
           <button class="danger" onclick="deletarAvaliacao(${rev.id})">Apagar</button>

@@ -50,6 +50,18 @@ function formatPhone(value) {
     .replace(/(\d{5})(\d)/, "$1-$2");
 }
 
+function formatReviewDate(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+
+  return date.toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric"
+  });
+}
+
 function getFirstName(name) {
   return (name || "Cliente").trim().split(" ")[0] || "Cliente";
 }
@@ -522,7 +534,7 @@ async function loadAccountReviews() {
           <span class="account-review-project">${escapeHtml(rev.projects?.name || "Edifique Construções")}</span>
         </div>
         <p class="account-review-text">${escapeHtml(rev.comment || "")}</p>
-        <span class="account-review-date">${new Date(rev.created_at).toLocaleDateString("pt-BR", { day:"2-digit", month:"long", year:"numeric" })}</span>
+        <span class="account-review-date">${formatReviewDate(rev.created_at)}</span>
       </div>
     `).join("");
   } catch (err) {
@@ -665,6 +677,7 @@ async function fetchTestimonialsData() {
       .select(`
         rating,
         comment,
+        created_at,
         reviewer_name,
         reviewer_avatar_url,
         projects (
@@ -684,6 +697,7 @@ async function fetchTestimonialsData() {
         avatar: getInitials(nome),
         avatarUrl: avaliacao.reviewer_avatar_url || "",
         name: nome,
+        date: formatReviewDate(avaliacao.created_at),
         role: avaliacao.projects?.name
           ? `Projeto: ${avaliacao.projects.name}`
           : "Cliente Edifique"
@@ -900,6 +914,8 @@ function renderTestimonials(data) {
         <div class="testimonial-stars">
           ${"★".repeat(item.stars)}${"☆".repeat(5 - item.stars)}
         </div>
+
+        ${item.date ? `<div class="testimonial-date">${escapeHtml(item.date)}</div>` : ""}
 
         <p class="testimonial-text">
           ${escapeHtml(item.text)}
