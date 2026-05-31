@@ -11,6 +11,7 @@ const db = window.supabase
   : null;
 
 const ADMIN_EMAIL = "admin@edifique.com";
+const CONDOMINIUM_DOCUMENTS_BUCKET = "condominium-documents";
 
 let clienteLogado = null;
 let adminLogado = false;
@@ -679,7 +680,7 @@ async function createCondominiumDocumentDownloadUrl(doc) {
       .map((part) => encodeURIComponent(part))
       .join("/");
     const downloadName = encodeURIComponent(fileName);
-    return `${SUPABASE_URL}/storage/v1/object/public/condominium-documents/${encodedPath}?download=${downloadName}`;
+    return `${SUPABASE_URL}/storage/v1/object/public/${CONDOMINIUM_DOCUMENTS_BUCKET}/${encodedPath}?download=${downloadName}`;
   }
 
   if (!db) return "";

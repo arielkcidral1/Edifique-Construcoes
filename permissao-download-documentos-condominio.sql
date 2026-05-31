@@ -9,7 +9,10 @@ ON storage.objects;
 
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('condominium-documents', 'condominium-documents', true)
-ON CONFLICT (id) DO UPDATE SET public = true;
+ON CONFLICT (id) DO UPDATE
+SET
+  name = EXCLUDED.name,
+  public = true;
 
 UPDATE storage.buckets
 SET public = true
@@ -22,3 +25,7 @@ TO anon, authenticated
 USING (
   bucket_id = 'condominium-documents'
 );
+
+SELECT id, name, public
+FROM storage.buckets
+WHERE id = 'condominium-documents';
