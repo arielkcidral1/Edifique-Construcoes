@@ -330,7 +330,6 @@ function buildAccountPanel() {
       </main>
     </div>
   `;
-  document.body.appendChild(panel);
 
   // Tab navigation
   panel.querySelectorAll("[data-account-tab]").forEach((btn) => {
@@ -572,6 +571,7 @@ async function resolveEmailFromCredential(credential) {
 
   const cpf = normalizeCpf(credential);
   if (cpf.length !== 11) return "";
+  if (!db) return "";
 
   const { data, error } = await db.rpc("get_customer_email_by_cpf", {
     cpf_input: cpf
@@ -1227,6 +1227,9 @@ window.addEventListener("resize", () => {
 // INICIAR SITE
 // ===============================
 async function init() {
+  // Garante visibilidade das partes estáticas do site logo de cara, mesmo se houver erro no BD
+  setupRevealAnimation();
+
   try {
     await loadClientProfile();
 
@@ -1355,7 +1358,14 @@ document.getElementById("formClienteLogin")?.addEventListener("submit", async fu
     return;
   }
 
+  if (submitButton) {
+    submitButton.disabled = true;
+    submitButton.textContent = "Entrando...";
+  }
+
   try {
+    if (!db) throw new Error("Banco de dados offline.");
+
     const email = await resolveEmailFromCredential(credential);
     if (!email) {
       errorBox.textContent = "Cliente não encontrado.";
@@ -1400,6 +1410,7 @@ document.getElementById("formClienteCadastro")?.addEventListener("submit", async
   const email = normalizeEmail(document.getElementById("cliente-cad-email").value);
   const password = document.getElementById("cliente-cad-pass").value;
   const errorBox = document.getElementById("clienteCadastroError");
+  const submitButton = this.querySelector('button[type="submit"]');
   errorBox.textContent = "";
 
   if (!name || cpf.length !== 11 || !phone || !/\S+@\S+\.\S+/.test(email) || !password) {
@@ -1412,7 +1423,14 @@ document.getElementById("formClienteCadastro")?.addEventListener("submit", async
     return;
   }
 
+  if (submitButton) {
+    submitButton.disabled = true;
+    submitButton.textContent = "Cadastrando...";
+  }
+
   try {
+    if (!db) throw new Error("Banco de dados offline.");
+
     const { data, error } = await db.auth.signUp({
       email,
       password,
@@ -1451,6 +1469,11 @@ document.getElementById("formClienteCadastro")?.addEventListener("submit", async
   } catch (error) {
     console.error("Erro no cadastro do cliente:", error);
     errorBox.textContent = "Não foi possível cadastrar agora.";
+  } finally {
+    if (submitButton) {
+      submitButton.disabled = false;
+      submitButton.textContent = "Entrar como cliente";
+    }
   }
 });
 
@@ -1504,6 +1527,11 @@ document.getElementById("reviewForm")?.addEventListener("submit", async function
   } catch (error) {
     console.error("Erro ao enviar avaliação:", error);
     errorBox.textContent = "Não foi possível enviar sua avaliação agora.";
+  } finally {
+    if (submitButton) {
+      submitButton.disabled = false;
+      submitButton.textContent = "Cadastrar e entrar";
+    }
   }
 });
 
