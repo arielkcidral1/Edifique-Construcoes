@@ -747,10 +747,14 @@
     footer {
       background: var(--dark); padding: 4rem 4rem 2rem;
       border-top: 1px solid rgba(120,144,155,.12);
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 2rem;
     }
     .footer-top {
-      display: grid; grid-template-columns: 2fr 1fr 1fr 1fr;
-      gap: 3rem; margin-bottom: 3rem;
+      display: block;
+      margin-bottom: 0;
     }
     .footer-logo-block .nav-logo { display: inline-block; margin-bottom: 1rem; }
     .footer-tagline {
@@ -768,9 +772,10 @@
     }
     .footer-col li a:hover { opacity: .85; color: var(--gold); }
     .footer-bottom {
-      border-top: 1px solid rgba(120,144,155,.1); padding-top: 1.5rem;
+      border-top: 0; padding-top: 0;
       display: flex; flex-direction: column; justify-content: flex-end; align-items: flex-end;
       gap: .9rem; margin-left: auto; text-align: right;
+      flex-shrink: 0;
     }
     .footer-copy {
       font-size: .72rem; color: var(--mid); letter-spacing: .06em;
@@ -971,7 +976,8 @@
       .album-title { font-size: 1.8rem; }
       .album-controls button { padding: .65rem .75rem; }
       .testimonials-grid { grid-template-columns: 1fr; }
-      .footer-top { grid-template-columns: 1fr 1fr; }
+      footer { align-items: flex-end; gap: 1.25rem; }
+      .footer-top { width: auto; min-width: 0; }
       .footer-bottom { flex-direction: column; align-items: flex-end; gap: 1rem; }
       .stats-strip { flex-wrap: wrap; padding: 2rem; }
       .client-auth-card { padding: 1.35rem; }
