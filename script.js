@@ -1332,7 +1332,7 @@ function getClientSignupErrorMessage(error) {
   }
 
   if (message.includes("database") || message.includes("saving new user")) {
-    return "Nao foi possivel salvar o cadastro no banco. Tente outro CPF/e-mail ou fale com o administrador.";
+    return "Não foi possível salvar o cadastro no banco. Tente outro CPF/e-mail ou fale com o administrador.";
   }
 
   if (message.includes("rate") || message.includes("too many")) {
@@ -1340,8 +1340,8 @@ function getClientSignupErrorMessage(error) {
   }
 
   return error?.message
-    ? `Nao foi possivel cadastrar: ${error.message}`
-    : "Nao foi possivel cadastrar. Verifique CPF, e-mail e WhatsApp.";
+    ? `Não foi possível cadastrar: ${error.message}`
+    : "Não foi possível cadastrar. Verifique CPF, e-mail e WhatsApp.";
 }
 
 document.getElementById("formClienteLogin")?.addEventListener("submit", async function (event) {
@@ -1385,7 +1385,7 @@ document.getElementById("formClienteLogin")?.addEventListener("submit", async fu
       clienteLogado = null;
       updateClientSessionUI();
       await updateCondominiumsMenu();
-      errorBox.textContent = "Cadastro de cliente nÃ£o encontrado. Faça seu cadastro antes de entrar.";
+      errorBox.textContent = "Cadastro de cliente não encontrado. Faça seu cadastro antes de entrar.";
       return;
     }
     closeClientAuth();
