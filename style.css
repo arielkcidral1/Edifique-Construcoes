@@ -11,23 +11,22 @@
       --mid:     #6F858C;
     }
 
-    html { scroll-behavior: smooth; }
+    html { scroll-behavior: smooth; scroll-padding-top: 100px; }
 
     body {
       font-family: 'DM Sans', sans-serif;
       background: var(--charcoal);
       color: var(--bone);
       overflow-x: hidden;
-      padding-left: 260px;
     }
 
     /* ── NAV ── */
     nav {
-      position: fixed; top: 0; left: 0; bottom: 0; right: auto; width: 260px; z-index: 100;
-      display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start;
-      padding: 2.5rem 2rem;
+      position: fixed; top: 0; left: 0; right: 0; bottom: auto; width: 100%; z-index: 100;
+      display: flex; flex-direction: row; align-items: center; justify-content: space-between;
+      padding: 1.2rem 4rem;
       background: var(--dark);
-      border-right: 1px solid rgba(120,144,155,.14);
+      border-bottom: 1px solid rgba(120,144,155,.14);
     }
     .nav-logo {
       font-family: 'Bebas Neue', sans-serif;
@@ -35,13 +34,13 @@
       color: var(--bone);
       text-decoration: none;
       display: inline-flex;
-      flex-direction: column;
-      align-items: flex-start;
+      flex-direction: row;
+      align-items: center;
       gap: 1rem;
     }
     .logo-mark {
-      width: 64px;
-      height: 64px;
+      width: 56px;
+      height: 56px;
       border-radius: 50%;
       object-fit: cover;
       border: 1px solid rgba(214, 200, 173, .36);
@@ -53,7 +52,7 @@
     .logo-word span { color: var(--rust); }
     .footer-brand .nav-logo { flex-direction: row; align-items: center; }
     .footer-brand .logo-mark { width: 76px; height: 76px; }
-    .nav-links { display: flex; flex-direction: column; gap: 1.5rem; list-style: none; margin-top: 3.5rem; margin-bottom: auto; width: 100%; }
+    .nav-links { display: flex; flex-direction: row; gap: 2.5rem; list-style: none; margin: 0; width: auto; align-items: center; }
     .nav-links a {
       font-size: .78rem; letter-spacing: .16em; text-transform: uppercase;
       color: var(--cream); text-decoration: none; opacity: .75;
@@ -68,9 +67,9 @@
       text-align: center;
     }
     .nav-cta:hover { background: var(--rust); color: #fff; }
-    .nav-actions { display: flex; flex-direction: column; gap: .85rem; align-items: stretch; width: 100%; }
+    .nav-actions { display: flex; flex-direction: row; gap: 1rem; align-items: center; width: auto; }
     .client-session-btn {
-      width: 100%;
+      width: auto;
       min-height: 42px;
       display: inline-flex; align-items: center; justify-content: center; gap: .45rem;
       padding: .55rem .95rem;
@@ -920,18 +919,15 @@
 
     /* ── MOBILE ── */
     @media (max-width: 900px) {
-      body { padding-left: 0; }
       nav { 
         padding: 1.2rem 2rem; 
-        position: fixed; top: 0; left: 0; right: 0; bottom: auto; width: 100%; 
-        flex-direction: row; align-items: center; justify-content: space-between;
-        border-right: none;
+        border-bottom: none;
         background: linear-gradient(to bottom, rgba(7,16,20,.92) 0%, transparent 100%);
       }
       .nav-logo { flex-direction: row; gap: .75rem; align-items: center; font-size: 1.2rem; }
       .logo-mark { width: 48px; height: 48px; }
       .nav-links { display: none; }
-      .nav-actions { gap: .55rem; flex-direction: row; width: auto; margin-top: 0; }
+      .nav-actions { gap: .55rem; }
       .client-session-btn { width: 42px; padding: 0; min-height: 42px; }
       .client-session-btn span { display: none; }
       section { padding: 5rem 2rem; }
@@ -992,7 +988,6 @@
 /* ── PAINEL CONTAINER ── */
 .account-panel {
   display: flex;
-  flex-direction: row-reverse;
   width: min(960px, 100%);
   height: min(680px, calc(100vh - 2rem));
   background: #071014;
@@ -1010,7 +1005,18 @@
   min-width: 230px;
   flex-shrink: 0;
   background: #0b1a22;
-  border-right: 0;
+  border-right: 1px solid rgba(120,144,155,.14);
+  display: flex;
+  flex-direction: column;
+  padding: 1.25rem 1rem;
+  overflow: hidden;
+}
+
+.account-sidebar-right {
+  width: 230px;
+  min-width: 230px;
+  flex-shrink: 0;
+  background: #0b1a22;
   border-left: 1px solid rgba(120,144,155,.14);
   display: flex;
   flex-direction: column;
