@@ -795,5 +795,5 @@ ON storage.objects
 FOR SELECT
 TO anon, authenticated
 USING (
-  bucket_id = 'condominium-documents'
+  bucket_id IN ('portfolio', 'condominium-documents', 'condominium_documents', 'documents', 'docs')
 );

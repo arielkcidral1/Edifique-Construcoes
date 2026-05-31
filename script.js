@@ -664,8 +664,11 @@ async function createCondominiumDocumentDownloadUrl(doc) {
 
   const fileName = doc.file_name || doc.title || "documento";
   const rawPath = String(doc.file_path || "").trim();
+  if (/^https?:\/\//i.test(rawPath)) return rawPath;
+
   const normalizedPath = rawPath
     .replace(/^\/+/, "")
+    .replace(/^storage\/v1\/object\/(?:public|sign)\//, "")
     .replace(/^portfolio\/+/, "")
     .replace(/^condominium-documents\/+/, "");
   const legacyPath = normalizedPath;
@@ -679,42 +682,44 @@ async function createCondominiumDocumentDownloadUrl(doc) {
     doc.condominium_id && fileName ? `${CONDOMINIUM_DOCUMENTS_FOLDER}/${doc.condominium_id}/${fileName}` : ""
   ].filter(Boolean);
   const uniquePaths = [...new Set(filePathCandidates)];
-  const errors = [];
+  const bucketCandidates = [
+    CONDOMINIUM_DOCUMENTS_BUCKET,
+    "condominium-documents",
+    "condominium_documents",
+    "documents",
+    "docs"
+  ];
+  const downloadName = encodeURIComponent(fileName);
+  const publicUrlCandidates = [];
 
-  for (const filePath of uniquePaths) {
-    const encodedPath = filePath
-      .split("/")
-      .map((part) => encodeURIComponent(part))
-      .join("/");
-    const downloadName = encodeURIComponent(fileName);
-    return `${SUPABASE_URL}/storage/v1/object/public/${CONDOMINIUM_DOCUMENTS_BUCKET}/${encodedPath}?download=${downloadName}`;
-  }
+  bucketCandidates.forEach((bucketName) => {
+    uniquePaths.forEach((filePath) => {
+      const cleanedPath = filePath
+        .replace(/^\/+/, "")
+        .replace(new RegExp(`^${bucketName}/+`), "");
+      const encodedPath = cleanedPath
+        .split("/")
+        .map((part) => encodeURIComponent(part))
+        .join("/");
+      publicUrlCandidates.push(
+        `${SUPABASE_URL}/storage/v1/object/public/${bucketName}/${encodedPath}?download=${downloadName}`
+      );
+    });
+  });
 
-  if (!db) return "";
-
-  for (const filePath of uniquePaths) {
-    const { data, error } = await db.storage
-      .from("condominium-documents")
-      .createSignedUrl(filePath, 60 * 15, {
-        download: fileName
-      });
-
-    if (!error && data?.signedUrl) return data.signedUrl;
-    errors.push({ filePath, error });
-  }
-
-  for (const filePath of uniquePaths) {
-    const { data } = db.storage
-      .from("condominium-documents")
-      .getPublicUrl(filePath, {
-        download: fileName
-      });
-
-    if (data?.publicUrl) return data.publicUrl;
+  const checkedUrls = [];
+  for (const url of [...new Set(publicUrlCandidates)]) {
+    try {
+      const response = await fetch(url, { method: "HEAD", cache: "no-store" });
+      checkedUrls.push({ url, status: response.status });
+      if (response.ok) return url;
+    } catch (error) {
+      checkedUrls.push({ url, error: error?.message || String(error) });
+    }
   }
 
   console.error("Erro ao gerar link de download do documento:", {
-    errors,
+    checkedUrls,
     documentId: doc.id,
     condominiumId: doc.condominium_id,
     filePath: doc.file_path,
