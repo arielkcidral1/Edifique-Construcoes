@@ -79,15 +79,18 @@ function updateClientSessionUI() {
   const btn = document.getElementById("clientSessionBtn");
   if (!btn) return;
 
-  btn.hidden = adminLogado;
+  const label = btn.querySelector("span");
   if (adminLogado) {
     document.body.classList.remove("client-logged-in");
-    btn.setAttribute("aria-hidden", "true");
+    btn.hidden = false;
+    btn.removeAttribute("aria-hidden");
+    if (label) label.textContent = "Painel Admin";
+    btn.title = "Abrir painel administrativo";
     return;
   }
 
+  btn.hidden = false;
   btn.removeAttribute("aria-hidden");
-  const label = btn.querySelector("span");
   if (clienteLogado) {
     document.body.classList.add("client-logged-in");
     if (label) label.textContent = getFirstName(clienteLogado.name);
@@ -1082,7 +1085,10 @@ document.querySelectorAll(".client-auth-tab").forEach((btn) => {
 
 // Botão de sessão: se logado, abre o painel de conta; se não, abre o login
 document.getElementById("clientSessionBtn")?.addEventListener("click", async () => {
-  if (adminLogado) return;
+  if (adminLogado) {
+    window.location.href = "admin.html";
+    return;
+  }
   if (clienteLogado) {
     showAccountPanel();
     return;
