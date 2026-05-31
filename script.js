@@ -532,11 +532,6 @@ async function loadAccountReviews() {
 
   container.innerHTML = '<div class="account-reviews-loading">Carregando avaliações...</div>';
 
-  if (submitButton) {
-    submitButton.disabled = true;
-    submitButton.textContent = "Entrando...";
-  }
-
   try {
     const { data: sessionData } = await db.auth.getSession();
     const user = sessionData?.session?.user;
@@ -1121,7 +1116,7 @@ function renderTestimonials(data) {
 // ANIMAÇÕES REVEAL
 // ===============================
 function setupRevealAnimation() {
-  const reveals = document.querySelectorAll(".reveal");
+  const reveals = document.querySelectorAll(".reveal:not([data-observed])");
 
   const io = new IntersectionObserver(
     (entries) => {
@@ -1137,7 +1132,10 @@ function setupRevealAnimation() {
     }
   );
 
-  reveals.forEach((el) => io.observe(el));
+  reveals.forEach((el) => {
+    el.setAttribute("data-observed", "true");
+    io.observe(el);
+  });
 }
 
 // ===============================
@@ -1212,6 +1210,18 @@ window.addEventListener(
     }
   }
 );
+
+window.addEventListener("resize", () => {
+  if (!nav) return;
+  if (window.innerWidth > 900) {
+    nav.style.background = "";
+  } else {
+    nav.style.background =
+      window.scrollY > 60
+        ? "rgba(7,16,20,.97)"
+        : "linear-gradient(to bottom, rgba(7,16,20,.92) 0%, transparent 100%)";
+  }
+});
 
 // ===============================
 // INICIAR SITE
