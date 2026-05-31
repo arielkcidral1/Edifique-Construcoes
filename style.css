@@ -728,6 +728,12 @@
     }
     .author-name { font-size: .82rem; letter-spacing: .06em; color: var(--bone); }
     .author-role { font-size: .72rem; color: var(--mid); margin-top: .1rem; }
+    .testimonial-date {
+      font-size: .68rem;
+      color: rgba(231, 236, 236, .45);
+      margin-top: .22rem;
+      letter-spacing: .08em;
+    }
 
     /* ── CONTACT ── */
     #contato {
