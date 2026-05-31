@@ -288,6 +288,10 @@ function buildAccountPanel() {
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
             Minhas Avaliações
           </button>
+          <button class="account-nav-item" data-account-tab="arquivos">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 18v-6"/><path d="m9 15 3 3 3-3"/></svg>
+            Arquivos
+          </button>
           <div class="account-nav-spacer"></div>
           <button class="account-logout-btn" id="accountLogoutBtn" type="button">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
@@ -375,6 +379,14 @@ function buildAccountPanel() {
         </div>
 
         <!-- TAB: AVALIAÇÕES -->
+        <div class="account-tab-content" id="account-tab-arquivos">
+          <div class="account-section-label">Arquivos dos condominios</div>
+          <p class="account-section-desc">Documentos adicionados pela Edifique para os condominios vinculados a sua conta.</p>
+          <div class="account-documents-list" id="accountDocumentsList">
+            <div class="account-reviews-loading">Carregando arquivos...</div>
+          </div>
+        </div>
+
         <div class="account-tab-content" id="account-tab-avaliacoes">
           <div class="account-section-label">Histórico de avaliações</div>
           <p class="account-section-desc">Avaliações que você enviou para a Edifique Construções.</p>
@@ -396,6 +408,7 @@ function buildAccountPanel() {
       panel.querySelectorAll(".account-tab-content").forEach(c => c.classList.remove("active"));
       const content = panel.querySelector(`#account-tab-${tab}`);
       if (content) content.classList.add("active");
+      if (tab === "arquivos") loadAccountDocuments();
       if (tab === "avaliacoes") loadAccountReviews();
     });
   });
@@ -641,6 +654,80 @@ async function loadAccountReviews() {
     `).join("");
   } catch (err) {
     container.innerHTML = '<p class="account-reviews-empty">Erro ao carregar avaliações.</p>';
+  }
+}
+
+async function createCondominiumDocumentDownloadUrl(doc) {
+  if (!db || !doc?.file_path) return "";
+
+  const fileName = doc.file_name || doc.title || "documento";
+  const { data, error } = await db.storage
+    .from("condominium-documents")
+    .createSignedUrl(doc.file_path, 60 * 15, {
+      download: fileName
+    });
+
+  if (!error && data?.signedUrl) return data.signedUrl;
+
+  console.error("Erro ao gerar link de download do documento:", error);
+  return "";
+}
+
+async function loadAccountDocuments() {
+  const container = document.getElementById("accountDocumentsList");
+  if (!container || !db) return;
+
+  container.innerHTML = '<div class="account-reviews-loading">Carregando arquivos...</div>';
+
+  if (!clienteLogado?.id) {
+    container.innerHTML = '<p class="account-reviews-empty">Entre com sua conta para baixar seus arquivos.</p>';
+    return;
+  }
+
+  try {
+    const condominiums = await fetchAssignedCondominiums();
+    if (!condominiums.length) {
+      container.innerHTML = '<p class="account-reviews-empty">Nenhum condominio foi atribuido ao seu login ainda.</p>';
+      return;
+    }
+
+    const condoById = new Map(condominiums.map((condo) => [String(condo.id), condo]));
+    const { data, error } = await db
+      .from("condominium_documents")
+      .select("id, condominium_id, title, document_type, file_path, file_name, uploaded_at")
+      .in("condominium_id", condominiums.map((condo) => condo.id))
+      .order("uploaded_at", { ascending: false });
+
+    if (error) throw error;
+
+    if (!data?.length) {
+      container.innerHTML = '<p class="account-reviews-empty">Nenhum arquivo foi adicionado aos seus condominios ainda.</p>';
+      return;
+    }
+
+    const rows = await Promise.all(data.map(async (doc) => {
+      const signedUrl = await createCondominiumDocumentDownloadUrl(doc);
+      const condo = condoById.get(String(doc.condominium_id));
+      const fileName = doc.file_name || doc.title || "documento";
+      const dateLabel = formatDateShort(doc.uploaded_at);
+
+      return `
+        <article class="account-document-card">
+          <div>
+            <span class="account-document-type">${escapeHtml(doc.document_type || "Documento")}</span>
+            <h3>${escapeHtml(doc.title || fileName)}</h3>
+            <p>${escapeHtml(condo?.name || "Condominio")}${dateLabel ? ` - ${dateLabel}` : ""}</p>
+            <small>${escapeHtml(fileName)}</small>
+          </div>
+          ${signedUrl ? `<a class="account-document-download" href="${escapeAttr(signedUrl)}" download="${escapeAttr(fileName)}">Baixar</a>` : '<span class="account-document-unavailable">Indisponivel</span>'}
+        </article>
+      `;
+    }));
+
+    container.innerHTML = rows.join("");
+  } catch (err) {
+    console.error("Erro ao carregar arquivos do painel:", err);
+    container.innerHTML = '<p class="account-reviews-empty">Nao foi possivel carregar os arquivos.</p>';
   }
 }
 
@@ -1109,20 +1196,15 @@ async function renderMyCondominiumsPage() {
       : '<p class="my-condo-empty">Nenhuma obra vinculada a este condominio.</p>';
 
     const documentsHtml = (await Promise.all((documents || []).map(async (doc) => {
-      const { data, error } = await db.storage
-        .from("condominium-documents")
-        .createSignedUrl(doc.file_path, 60 * 15, {
-          download: doc.file_name || true
-        });
-
-      if (error) console.error("Erro ao gerar download do documento:", error);
+      const signedUrl = await createCondominiumDocumentDownloadUrl(doc);
+      const fileName = doc.file_name || doc.title || "documento";
 
       return `
         <article class="my-condo-doc">
           <span>${escapeHtml(doc.document_type)}</span>
           <h3>${escapeHtml(doc.title)}</h3>
-          <p>${escapeHtml(doc.file_name || "Documento")}</p>
-          ${data?.signedUrl ? `<a class="btn-outline" href="${escapeAttr(data.signedUrl)}" download="${escapeAttr(doc.file_name || doc.title || "documento")}">Baixar documento</a>` : '<p class="my-condo-empty">Arquivo indisponivel para download.</p>'}
+          <p>${escapeHtml(fileName)}</p>
+          ${signedUrl ? `<a class="btn-outline" href="${escapeAttr(signedUrl)}" download="${escapeAttr(fileName)}">Baixar documento</a>` : '<p class="my-condo-empty">Arquivo indisponivel para download.</p>'}
         </article>
       `;
     }))).join("") || '<p class="my-condo-empty">Nenhum laudo, RT ou documento registrado.</p>';

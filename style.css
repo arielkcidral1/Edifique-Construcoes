@@ -1782,6 +1782,84 @@
   letter-spacing: .05em;
 }
 
+/* ── ARQUIVOS ── */
+.account-documents-list {
+  display: flex;
+  flex-direction: column;
+  gap: .8rem;
+}
+
+.account-document-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.2rem;
+  border: 1px solid rgba(120,144,155,.16);
+  border-radius: 8px;
+  background: rgba(15,30,37,.65);
+}
+
+.account-document-card h3 {
+  margin: .35rem 0 .3rem;
+  color: #E7ECEC;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.35rem;
+  line-height: 1;
+  letter-spacing: .05em;
+}
+
+.account-document-card p,
+.account-document-card small {
+  display: block;
+  color: rgba(231,236,236,.62);
+  font-family: 'DM Sans', sans-serif;
+  font-size: .78rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.account-document-card small {
+  color: #6F858C;
+}
+
+.account-document-type {
+  color: #C08E62;
+  font-family: 'DM Sans', sans-serif;
+  font-size: .65rem;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.account-document-download,
+.account-document-unavailable {
+  flex: 0 0 auto;
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: .65rem .9rem;
+  border: 1px solid rgba(192,142,98,.56);
+  border-radius: 6px;
+  background: rgba(192,142,98,.12);
+  color: #E7ECEC;
+  font-family: 'DM Sans', sans-serif;
+  font-size: .68rem;
+  font-weight: 800;
+  letter-spacing: .12em;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.account-document-download:hover {
+  background: rgba(192,142,98,.22);
+}
+
+.account-document-unavailable {
+  opacity: .52;
+}
+
 /* ── RESPONSIVO ── */
 @media (max-width: 720px) {
   .account-panel-overlay {
@@ -1899,5 +1977,13 @@
   .account-review-header {
     align-items: flex-start;
     flex-direction: column;
+  }
+  .account-document-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .account-document-download,
+  .account-document-unavailable {
+    width: 100%;
   }
 }
