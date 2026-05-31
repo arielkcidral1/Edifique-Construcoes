@@ -357,6 +357,26 @@ function buildAccountPanel() {
     updateClientSessionUI();
     await updateCondominiumsMenu();
     closeAccountPanel();
+  panel.querySelector("#accountLogoutBtn").addEventListener("click", async (e) => {
+    const btn = e.currentTarget;
+    btn.style.opacity = "0.5";
+    btn.style.pointerEvents = "none";
+    btn.innerHTML = "Saindo...";
+
+    try {
+      if (db) await db.auth.signOut();
+    } catch (err) {
+      console.warn("Erro ao processar logout no Supabase:", err);
+    } finally {
+      // Força a limpeza do cache local para evitar que a sessão fique presa
+      [localStorage, sessionStorage].forEach((s) => {
+        try { Object.keys(s).filter(k => k.startsWith("sb-")).forEach(k => s.removeItem(k)); } catch(e) {}
+      });
+      
+      clienteLogado = null;
+      closeAccountPanel();
+      window.location.reload();
+    }
   });
 
   // CPF / Phone masks
@@ -492,6 +512,20 @@ function buildAccountPanel() {
     await updateCondominiumsMenu();
     closeAccountPanel();
     alert("Sua solicitação de exclusão foi registrada. Entraremos em contato para concluir o processo.");
+    try {
+      if (db) await db.auth.signOut();
+    } catch (err) {
+      console.warn("Erro ao sair:", err);
+    } finally {
+      [localStorage, sessionStorage].forEach((s) => {
+        try { Object.keys(s).filter(k => k.startsWith("sb-")).forEach(k => s.removeItem(k)); } catch(e) {}
+      });
+      
+      clienteLogado = null;
+      closeAccountPanel();
+      alert("Sua solicitação de exclusão foi registrada. Entraremos em contato para concluir o processo.");
+      window.location.replace("index.html");
+    }
   });
 
   return panel;
@@ -1382,6 +1416,9 @@ document.getElementById("formClienteLogin")?.addEventListener("submit", async fu
     await loadClientProfile();
     if (!clienteLogado?.id) {
       await db.auth.signOut();
+      try {
+        await db.auth.signOut();
+      } catch(e) {}
       clienteLogado = null;
       updateClientSessionUI();
       await updateCondominiumsMenu();
