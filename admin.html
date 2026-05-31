@@ -346,6 +346,16 @@
       return escapeHtml(value).replace(/`/g, "&#096;");
     }
 
+    function isAdminManagementUser(cliente) {
+      const email = (cliente?.email || "").trim().toLowerCase();
+      const name = (cliente?.name || "").trim().toLowerCase();
+      return (
+        email === "admin@edifique.com" ||
+        name === "admin edifique" ||
+        name === "administrador edifique"
+      );
+    }
+
     async function criarProjeto() {
       const name = document.getElementById('projName').value;
       const condominiumId = document.getElementById('projCondoSelect')?.value || "";
@@ -535,8 +545,10 @@
         return;
       }
 
+      const clientesVisiveis = (data || []).filter((cliente) => !isAdminManagementUser(cliente));
+
       select.innerHTML = '<option value="">Selecione um cliente</option>' +
-        (data || []).map(cliente => `<option value="${cliente.id}">${escapeHtml(cliente.name)} - ${escapeHtml(cliente.email)}</option>`).join('');
+        clientesVisiveis.map(cliente => `<option value="${cliente.id}">${escapeHtml(cliente.name)} - ${escapeHtml(cliente.email)}</option>`).join('');
     }
 
     async function carregarCondominios() {
@@ -744,11 +756,7 @@
         return;
       }
 
-      const clientesVisiveis = (data || []).filter((cliente) => {
-        const email = (cliente.email || "").toLowerCase();
-        const name = (cliente.name || "").toLowerCase();
-        return email !== "admin@edifique.com" && name !== "administrador edifique";
-      });
+      const clientesVisiveis = (data || []).filter((cliente) => !isAdminManagementUser(cliente));
 
       if (!clientesVisiveis.length) {
         container.innerHTML = "Nenhum cliente cadastrado.";
@@ -756,10 +764,7 @@
       }
 
       container.innerHTML = clientesVisiveis.map((cliente) => {
-        const isAdminUser = (cliente.email || "").toLowerCase() === "admin@edifique.com";
-        const deleteAction = isAdminUser
-          ? '<span class="muted">Conta administrativa protegida</span>'
-          : '<button class="danger" onclick="deletarCliente(' + cliente.id + ')">Apagar cadastro</button>';
+        const deleteAction = '<button class="danger" onclick="deletarCliente(' + cliente.id + ')">Apagar cadastro</button>';
 
         return `
         <div class="client-item" id="cliente-${cliente.id}">

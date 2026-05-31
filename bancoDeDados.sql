@@ -248,6 +248,7 @@ BEGIN
   SELECT c.id, c.name, c.email, c.phone, c.cpf, c.avatar_url, c.created_at
   FROM public.customers c
   WHERE lower(c.email) <> 'admin@edifique.com'
+    AND lower(c.name) <> lower('Admin Edifique')
     AND lower(c.name) <> lower('Administrador Edifique')
   ORDER BY c.created_at DESC NULLS LAST, c.id DESC;
 END;
@@ -268,6 +269,18 @@ AS $$
 BEGIN
   IF ((SELECT auth.jwt()) ->> 'email') <> 'admin@edifique.com' THEN
     RAISE EXCEPTION 'Acesso negado.' USING ERRCODE = '42501';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM public.customers
+    WHERE id = customer_id_input
+      AND (
+        lower(email) = 'admin@edifique.com'
+        OR lower(name) IN ('admin edifique', 'administrador edifique')
+      )
+  ) THEN
+    RAISE EXCEPTION 'O usuario administrador nao pode ser alterado.' USING ERRCODE = '42501';
   END IF;
 
   UPDATE public.customers
@@ -295,14 +308,18 @@ BEGIN
     SELECT 1
     FROM public.customers
     WHERE id = customer_id_input
-      AND lower(email) = 'admin@edifique.com'
+      AND (
+        lower(email) = 'admin@edifique.com'
+        OR lower(name) IN ('admin edifique', 'administrador edifique')
+      )
   ) THEN
     RAISE EXCEPTION 'O usuario administrador nao pode ser apagado.' USING ERRCODE = '42501';
   END IF;
 
   DELETE FROM public.customers
   WHERE id = customer_id_input
-    AND lower(email) <> 'admin@edifique.com';
+    AND lower(email) <> 'admin@edifique.com'
+    AND lower(name) NOT IN ('admin edifique', 'administrador edifique');
 END;
 $$;
 
