@@ -658,7 +658,7 @@ async function loadAccountReviews() {
 }
 
 async function createCondominiumDocumentDownloadUrl(doc) {
-  if (!db || !doc?.file_path) return "";
+  if (!doc?.file_path) return "";
 
   const fileName = doc.file_name || doc.title || "documento";
   const rawPath = String(doc.file_path || "").trim();
@@ -672,6 +672,17 @@ async function createCondominiumDocumentDownloadUrl(doc) {
   ].filter(Boolean);
   const uniquePaths = [...new Set(filePathCandidates)];
   const errors = [];
+
+  for (const filePath of uniquePaths) {
+    const encodedPath = filePath
+      .split("/")
+      .map((part) => encodeURIComponent(part))
+      .join("/");
+    const downloadName = encodeURIComponent(fileName);
+    return `${SUPABASE_URL}/storage/v1/object/public/condominium-documents/${encodedPath}?download=${downloadName}`;
+  }
+
+  if (!db) return "";
 
   for (const filePath of uniquePaths) {
     const { data, error } = await db.storage

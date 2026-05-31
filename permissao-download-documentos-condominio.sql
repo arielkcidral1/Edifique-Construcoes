@@ -7,6 +7,10 @@ ON storage.objects;
 DROP POLICY IF EXISTS "Public can read condominium documents storage"
 ON storage.objects;
 
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('condominium-documents', 'condominium-documents', true)
+ON CONFLICT (id) DO UPDATE SET public = true;
+
 UPDATE storage.buckets
 SET public = true
 WHERE id = 'condominium-documents';
