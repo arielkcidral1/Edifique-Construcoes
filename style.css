@@ -1012,18 +1012,6 @@
   overflow: hidden;
 }
 
-.account-sidebar-right {
-  width: 230px;
-  min-width: 230px;
-  flex-shrink: 0;
-  background: #0b1a22;
-  border-left: 1px solid rgba(120,144,155,.14);
-  display: flex;
-  flex-direction: column;
-  padding: 1.25rem 1rem;
-  overflow: hidden;
-}
-
 .account-sidebar-header {
   display: flex;
   align-items: center;
