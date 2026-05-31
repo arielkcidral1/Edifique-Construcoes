@@ -33,6 +33,35 @@ CREATE TABLE IF NOT EXISTS public.projects (
   end_date DATE
 );
 
+CREATE TABLE IF NOT EXISTS public.condominiums (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  name TEXT NOT NULL,
+  address TEXT,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE public.projects
+  ADD COLUMN IF NOT EXISTS condominium_id BIGINT REFERENCES public.condominiums(id) ON DELETE SET NULL;
+
+CREATE TABLE IF NOT EXISTS public.customer_condominiums (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  customer_id BIGINT NOT NULL REFERENCES public.customers(id) ON DELETE CASCADE,
+  condominium_id BIGINT NOT NULL REFERENCES public.condominiums(id) ON DELETE CASCADE,
+  assigned_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE (customer_id, condominium_id)
+);
+
+CREATE TABLE IF NOT EXISTS public.condominium_documents (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  condominium_id BIGINT NOT NULL REFERENCES public.condominiums(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  document_type TEXT NOT NULL,
+  file_path TEXT NOT NULL,
+  file_name TEXT,
+  uploaded_at TIMESTAMPTZ DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS public.project_photos (
   id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   project_id BIGINT REFERENCES public.projects(id) ON DELETE CASCADE,
@@ -42,6 +71,18 @@ CREATE TABLE IF NOT EXISTS public.project_photos (
 
 CREATE INDEX IF NOT EXISTS project_photos_project_id_idx
   ON public.project_photos(project_id);
+
+CREATE INDEX IF NOT EXISTS projects_condominium_id_idx
+  ON public.projects(condominium_id);
+
+CREATE INDEX IF NOT EXISTS customer_condominiums_customer_id_idx
+  ON public.customer_condominiums(customer_id);
+
+CREATE INDEX IF NOT EXISTS customer_condominiums_condominium_id_idx
+  ON public.customer_condominiums(condominium_id);
+
+CREATE INDEX IF NOT EXISTS condominium_documents_condominium_id_idx
+  ON public.condominium_documents(condominium_id);
 
 CREATE TABLE IF NOT EXISTS public.reviews (
   id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -56,7 +97,8 @@ CREATE TABLE IF NOT EXISTS public.reviews (
 
 ALTER TABLE public.reviews
   ADD COLUMN IF NOT EXISTS reviewer_name TEXT,
-  ADD COLUMN IF NOT EXISTS reviewer_avatar_url TEXT;
+  ADD COLUMN IF NOT EXISTS reviewer_avatar_url TEXT,
+  ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT now();
 
 CREATE INDEX IF NOT EXISTS reviews_customer_id_idx
   ON public.reviews(customer_id);
@@ -205,6 +247,9 @@ BEGIN
   RETURN QUERY
   SELECT c.id, c.name, c.email, c.phone, c.cpf, c.avatar_url, c.created_at
   FROM public.customers c
+  WHERE lower(c.email) <> 'admin@edifique.com'
+    AND lower(c.name) <> lower('Admin Edifique')
+    AND lower(c.name) <> lower('Administrador Edifique')
   ORDER BY c.created_at DESC NULLS LAST, c.id DESC;
 END;
 $$;
@@ -224,6 +269,18 @@ AS $$
 BEGIN
   IF ((SELECT auth.jwt()) ->> 'email') <> 'admin@edifique.com' THEN
     RAISE EXCEPTION 'Acesso negado.' USING ERRCODE = '42501';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM public.customers
+    WHERE id = customer_id_input
+      AND (
+        lower(email) = 'admin@edifique.com'
+        OR lower(name) IN ('admin edifique', 'administrador edifique')
+      )
+  ) THEN
+    RAISE EXCEPTION 'O usuario administrador nao pode ser alterado.' USING ERRCODE = '42501';
   END IF;
 
   UPDATE public.customers
@@ -247,8 +304,22 @@ BEGIN
     RAISE EXCEPTION 'Acesso negado.' USING ERRCODE = '42501';
   END IF;
 
+  IF EXISTS (
+    SELECT 1
+    FROM public.customers
+    WHERE id = customer_id_input
+      AND (
+        lower(email) = 'admin@edifique.com'
+        OR lower(name) IN ('admin edifique', 'administrador edifique')
+      )
+  ) THEN
+    RAISE EXCEPTION 'O usuario administrador nao pode ser apagado.' USING ERRCODE = '42501';
+  END IF;
+
   DELETE FROM public.customers
-  WHERE id = customer_id_input;
+  WHERE id = customer_id_input
+    AND lower(email) <> 'admin@edifique.com'
+    AND lower(name) NOT IN ('admin edifique', 'administrador edifique');
 END;
 $$;
 
@@ -280,15 +351,24 @@ ON CONFLICT (email) DO UPDATE SET
   avatar_url = COALESCE(EXCLUDED.avatar_url, public.customers.avatar_url);
 
 ALTER TABLE public.customers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.condominiums ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.customer_condominiums ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.condominium_documents ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.projects ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.project_photos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.reviews ENABLE ROW LEVEL SECURITY;
 
 REVOKE ALL ON TABLE public.customers FROM anon, authenticated;
+REVOKE ALL ON TABLE public.condominiums FROM anon, authenticated;
+REVOKE ALL ON TABLE public.customer_condominiums FROM anon, authenticated;
+REVOKE ALL ON TABLE public.condominium_documents FROM anon, authenticated;
 REVOKE ALL ON TABLE public.projects FROM anon, authenticated;
 REVOKE ALL ON TABLE public.project_photos FROM anon, authenticated;
 REVOKE ALL ON TABLE public.reviews FROM anon, authenticated;
 
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.condominiums TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.customer_condominiums TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.condominium_documents TO authenticated;
 GRANT SELECT ON TABLE public.projects TO anon, authenticated;
 GRANT SELECT ON TABLE public.project_photos TO anon, authenticated;
 GRANT SELECT ON TABLE public.reviews TO anon, authenticated;
@@ -310,6 +390,12 @@ DROP POLICY IF EXISTS "Admins can view customers" ON public.customers;
 DROP POLICY IF EXISTS "Admins can update customers" ON public.customers;
 DROP POLICY IF EXISTS "Admins can delete customers" ON public.customers;
 DROP POLICY IF EXISTS "Admins have full access to customers" ON public.customers;
+DROP POLICY IF EXISTS "Assigned customers can view condominiums" ON public.condominiums;
+DROP POLICY IF EXISTS "Admins have full access to condominiums" ON public.condominiums;
+DROP POLICY IF EXISTS "Assigned customers can view condominium links" ON public.customer_condominiums;
+DROP POLICY IF EXISTS "Admins have full access to condominium links" ON public.customer_condominiums;
+DROP POLICY IF EXISTS "Assigned customers can view condominium documents" ON public.condominium_documents;
+DROP POLICY IF EXISTS "Admins have full access to condominium documents" ON public.condominium_documents;
 DROP POLICY IF EXISTS "Public projects are readable" ON public.projects;
 DROP POLICY IF EXISTS "Admins can manage projects" ON public.projects;
 DROP POLICY IF EXISTS "Admins can insert projects" ON public.projects;
@@ -373,6 +459,68 @@ ON public.customers
 FOR DELETE
 TO authenticated
 USING (((SELECT auth.jwt()) ->> 'email') = 'admin@edifique.com');
+
+CREATE POLICY "Assigned customers can view condominiums"
+ON public.condominiums
+FOR SELECT
+TO authenticated
+USING (
+  EXISTS (
+    SELECT 1
+    FROM public.customer_condominiums cc
+    JOIN public.customers c ON c.id = cc.customer_id
+    WHERE cc.condominium_id = condominiums.id
+      AND c.user_id = (SELECT auth.uid())
+  )
+);
+
+CREATE POLICY "Admins have full access to condominiums"
+ON public.condominiums
+FOR ALL
+TO authenticated
+USING (((SELECT auth.jwt()) ->> 'email') = 'admin@edifique.com')
+WITH CHECK (((SELECT auth.jwt()) ->> 'email') = 'admin@edifique.com');
+
+CREATE POLICY "Assigned customers can view condominium links"
+ON public.customer_condominiums
+FOR SELECT
+TO authenticated
+USING (
+  EXISTS (
+    SELECT 1
+    FROM public.customers c
+    WHERE c.id = customer_condominiums.customer_id
+      AND c.user_id = (SELECT auth.uid())
+  )
+);
+
+CREATE POLICY "Admins have full access to condominium links"
+ON public.customer_condominiums
+FOR ALL
+TO authenticated
+USING (((SELECT auth.jwt()) ->> 'email') = 'admin@edifique.com')
+WITH CHECK (((SELECT auth.jwt()) ->> 'email') = 'admin@edifique.com');
+
+CREATE POLICY "Assigned customers can view condominium documents"
+ON public.condominium_documents
+FOR SELECT
+TO authenticated
+USING (
+  EXISTS (
+    SELECT 1
+    FROM public.customer_condominiums cc
+    JOIN public.customers c ON c.id = cc.customer_id
+    WHERE cc.condominium_id = condominium_documents.condominium_id
+      AND c.user_id = (SELECT auth.uid())
+  )
+);
+
+CREATE POLICY "Admins have full access to condominium documents"
+ON public.condominium_documents
+FOR ALL
+TO authenticated
+USING (((SELECT auth.jwt()) ->> 'email') = 'admin@edifique.com')
+WITH CHECK (((SELECT auth.jwt()) ->> 'email') = 'admin@edifique.com');
 
 CREATE POLICY "Public projects are readable"
 ON public.projects
@@ -500,6 +648,10 @@ INSERT INTO storage.buckets (id, name, public)
 VALUES ('avatars', 'avatars', true)
 ON CONFLICT (id) DO UPDATE SET public = EXCLUDED.public;
 
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('condominium-documents', 'condominium-documents', false)
+ON CONFLICT (id) DO UPDATE SET public = EXCLUDED.public;
+
 DROP POLICY IF EXISTS "Public portfolio photos are visible" ON storage.objects;
 DROP POLICY IF EXISTS "Admins can upload portfolio photos" ON storage.objects;
 DROP POLICY IF EXISTS "Admins can update portfolio photos" ON storage.objects;
@@ -509,6 +661,8 @@ DROP POLICY IF EXISTS "Public avatars are visible" ON storage.objects;
 DROP POLICY IF EXISTS "Customers can upload own avatars" ON storage.objects;
 DROP POLICY IF EXISTS "Customers can update own avatars" ON storage.objects;
 DROP POLICY IF EXISTS "Customers can delete own avatars" ON storage.objects;
+DROP POLICY IF EXISTS "Admins have full access to condominium documents storage" ON storage.objects;
+DROP POLICY IF EXISTS "Assigned customers can read condominium documents storage" ON storage.objects;
 
 CREATE POLICY "Admins have full access to portfolio photos"
 ON storage.objects
@@ -573,52 +727,24 @@ USING (
   AND (storage.foldername(name))[1] = (SELECT auth.uid())::text
 );
 
--- ==========================================
--- TABELAS AUSENTES: CONDOMÍNIOS E DOCUMENTOS
--- ==========================================
+CREATE POLICY "Admins have full access to condominium documents storage"
+ON storage.objects
+FOR ALL
+TO authenticated
+USING (bucket_id = 'condominium-documents' AND ((SELECT auth.jwt()) ->> 'email') = 'admin@edifique.com')
+WITH CHECK (bucket_id = 'condominium-documents' AND ((SELECT auth.jwt()) ->> 'email') = 'admin@edifique.com');
 
-CREATE TABLE IF NOT EXISTS public.condominiums (
-  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  name TEXT NOT NULL,
-  address TEXT,
-  notes TEXT,
-  created_at TIMESTAMPTZ DEFAULT now()
+CREATE POLICY "Assigned customers can read condominium documents storage"
+ON storage.objects
+FOR SELECT
+TO authenticated
+USING (
+  bucket_id = 'condominium-documents'
+  AND EXISTS (
+    SELECT 1
+    FROM public.customer_condominiums cc
+    JOIN public.customers c ON c.id = cc.customer_id
+    WHERE cc.condominium_id::text = (storage.foldername(name))[1]
+      AND c.user_id = (SELECT auth.uid())
+  )
 );
-
-CREATE TABLE IF NOT EXISTS public.customer_condominiums (
-  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  customer_id BIGINT REFERENCES public.customers(id) ON DELETE CASCADE,
-  condominium_id BIGINT REFERENCES public.condominiums(id) ON DELETE CASCADE,
-  assigned_at TIMESTAMPTZ DEFAULT now(),
-  UNIQUE(customer_id, condominium_id)
-);
-
-CREATE TABLE IF NOT EXISTS public.condominium_documents (
-  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  condominium_id BIGINT REFERENCES public.condominiums(id) ON DELETE CASCADE,
-  title TEXT NOT NULL,
-  document_type TEXT,
-  file_path TEXT NOT NULL,
-  file_name TEXT,
-  uploaded_at TIMESTAMPTZ DEFAULT now()
-);
-
-ALTER TABLE public.projects
-  ADD COLUMN IF NOT EXISTS condominium_id BIGINT REFERENCES public.condominiums(id) ON DELETE SET NULL;
-
-INSERT INTO storage.buckets (id, name, public)
-VALUES ('condominium-documents', 'condominium-documents', false)
-ON CONFLICT (id) DO UPDATE SET public = EXCLUDED.public;
-
-ALTER TABLE public.condominiums ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.customer_condominiums ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.condominium_documents ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Admins have full access to condominiums" ON public.condominiums FOR ALL TO authenticated USING (((SELECT auth.jwt()) ->> 'email') = 'admin@edifique.com');
-CREATE POLICY "Customers can view assigned condominiums" ON public.condominiums FOR SELECT TO authenticated USING (EXISTS (SELECT 1 FROM public.customer_condominiums cc JOIN public.customers c ON cc.customer_id = c.id WHERE cc.condominium_id = condominiums.id AND c.user_id = (SELECT auth.uid())));
-
-CREATE POLICY "Admins have full access to customer_condominiums" ON public.customer_condominiums FOR ALL TO authenticated USING (((SELECT auth.jwt()) ->> 'email') = 'admin@edifique.com');
-CREATE POLICY "Customers can view their own condominium links" ON public.customer_condominiums FOR SELECT TO authenticated USING (EXISTS (SELECT 1 FROM public.customers c WHERE c.id = customer_condominiums.customer_id AND c.user_id = (SELECT auth.uid())));
-
-CREATE POLICY "Admins have full access to condominium_documents" ON public.condominium_documents FOR ALL TO authenticated USING (((SELECT auth.jwt()) ->> 'email') = 'admin@edifique.com');
-CREATE POLICY "Customers can view documents of assigned condominiums" ON public.condominium_documents FOR SELECT TO authenticated USING (EXISTS (SELECT 1 FROM public.customer_condominiums cc JOIN public.customers c ON cc.customer_id = c.id WHERE cc.condominium_id = condominium_documents.condominium_id AND c.user_id = (SELECT auth.uid())));

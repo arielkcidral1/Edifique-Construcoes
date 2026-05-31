@@ -330,6 +330,7 @@ function buildAccountPanel() {
       </main>
     </div>
   `;
+  document.body.appendChild(panel);
 
   // Tab navigation
   panel.querySelectorAll("[data-account-tab]").forEach((btn) => {
@@ -530,6 +531,11 @@ async function loadAccountReviews() {
   if (!container || !db) return;
 
   container.innerHTML = '<div class="account-reviews-loading">Carregando avaliações...</div>';
+
+  if (submitButton) {
+    submitButton.disabled = true;
+    submitButton.textContent = "Entrando...";
+  }
 
   try {
     const { data: sessionData } = await db.auth.getSession();
@@ -1207,18 +1213,6 @@ window.addEventListener(
   }
 );
 
-window.addEventListener("resize", () => {
-  if (!nav) return;
-  if (window.innerWidth > 900) {
-    nav.style.background = "";
-  } else {
-    nav.style.background =
-      window.scrollY > 60
-        ? "rgba(7,16,20,.97)"
-        : "linear-gradient(to bottom, rgba(7,16,20,.92) 0%, transparent 100%)";
-  }
-});
-
 // ===============================
 // INICIAR SITE
 // ===============================
@@ -1349,11 +1343,6 @@ document.getElementById("formClienteLogin")?.addEventListener("submit", async fu
   if (!credential || !password) {
     errorBox.textContent = "Informe e-mail/CPF e senha.";
     return;
-  }
-
-  if (submitButton) {
-    submitButton.disabled = true;
-    submitButton.textContent = "Entrando...";
   }
 
   try {
