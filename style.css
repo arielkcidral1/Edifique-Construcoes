@@ -289,8 +289,8 @@
       position: absolute;
       inset: 0;
       background:
-        linear-gradient(180deg, rgba(7,16,20,.12) 0%, rgba(7,16,20,.52) 100%),
-        linear-gradient(145deg, rgba(192,142,98,.18) 0%, transparent 48%);
+        linear-gradient(180deg, rgba(7,16,20,.04) 0%, rgba(7,16,20,.34) 100%),
+        linear-gradient(145deg, rgba(192,142,98,.1) 0%, transparent 48%);
       pointer-events: none;
     }
     .about-image {
@@ -298,7 +298,8 @@
       height: 100%;
       display: block;
       object-fit: cover;
-      filter: saturate(.72) contrast(1.04);
+      object-position: center;
+      filter: saturate(.82) contrast(1.03);
     }
     .about-accent {
       position: absolute; bottom: -1.5rem; right: -1.5rem;
@@ -321,7 +322,7 @@
     .big-text {
       position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
       font-family: 'Bebas Neue', sans-serif;
-      font-size: 6rem; color: rgba(231,236,236,.12);
+      font-size: 6rem; color: rgba(231,236,236,.08);
       white-space: nowrap; pointer-events: none; z-index: 1;
     }
     .about-content .section-title { margin-bottom: 2rem; }
