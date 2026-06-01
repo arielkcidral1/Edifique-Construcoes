@@ -562,7 +562,6 @@ function buildAccountPanel() {
   // Delete account
   panel.querySelector("#accountDeleteBtn").addEventListener("click", async () => {
     if (!confirm("Tem certeza que deseja excluir sua conta? Esta ação é permanente.")) return;
-    // sign out first – server-side deletion requires service role; for now we sign out and inform
     try {
       if (db) await db.auth.signOut();
     } catch (err) {
@@ -571,13 +570,6 @@ function buildAccountPanel() {
       [localStorage, sessionStorage].forEach((s) => {
         try { Object.keys(s).filter(k => k.startsWith("sb-")).forEach(k => s.removeItem(k)); } catch(e) {}
       });
-      try {
-        if (window.localStorage) Object.keys(window.localStorage).filter(k => k.startsWith("sb-")).forEach(k => window.localStorage.removeItem(k));
-      } catch(e) {}
-      try {
-        if (window.sessionStorage) Object.keys(window.sessionStorage).filter(k => k.startsWith("sb-")).forEach(k => window.sessionStorage.removeItem(k));
-      } catch(e) {}
-      
       clienteLogado = null;
       updateClientSessionUI();
       runInBackground(updateCondominiumsMenu, "Nao foi possivel atualizar o menu apos exclusao:");
@@ -786,61 +778,74 @@ async function loadAccountDocuments() {
   }
 }
 
+// ===============================
+// FIX: resolveEmailFromCredential
+// ===============================
 async function resolveEmailFromCredential(credential) {
   if (!db) return "";
 
+  // Remove espaços, pontos, traços e qualquer caractere não-dígito/não-@
   const login = (credential || "").trim();
   if (!login) return "";
 
-  // E-mail: retorna diretamente
+  // --- É e-mail ---
   if (login.includes("@")) return normalizeEmail(login);
 
-  // CPF: normaliza para só dígitos
-  const cpf = normalizeCpf(login);
-  if (cpf.length !== 11) return "";
+  // --- É CPF: normaliza para apenas dígitos ---
+  const cpf = normalizeCpf(login); // remove TODOS os não-dígitos
+
+  // CPF brasileiro sempre tem 11 dígitos
+  if (cpf.length !== 11) {
+    console.warn("resolveEmailFromCredential: CPF inválido (não tem 11 dígitos)", { login, cpf, cpfLength: cpf.length });
+    return "";
+  }
 
   const readRpcEmail = (data) => {
     if (typeof data === "string") return normalizeEmail(data);
     if (Array.isArray(data)) return normalizeEmail(data[0]?.email || data[0]);
-    return normalizeEmail(data?.email);
+    return normalizeEmail(data?.email || "");
   };
 
-  // Tentativa 1: RPC mais completa (busca em auth.users + customers)
-  let response = await db.rpc("get_customer_login_email", {
-    login_input: cpf
-  });
-
-  // Fallback: se a RPC não existe, usa a antiga
-  if (response.error?.code === "PGRST202" || response.error?.code === "42883") {
-    response = await db.rpc("get_customer_email_by_cpf", {
-      cpf_input: cpf
-    });
-  }
-
-  // Se encontrou, retorna
-  if (!response.error && response.data) {
-    const email = readRpcEmail(response.data);
-    if (email) return email;
-  }
-
-  // Log detalhado para depuração sem bloquear o fluxo
-  if (response.error) {
-    console.warn("RPC get_customer_login_email retornou erro:", response.error);
-  }
-
-  // Tentativa 2: busca direta na tabela customers por CPF formatado ou sem formatação
+  // Tentativa 1: RPC get_customer_login_email (aceita CPF com ou sem máscara)
   try {
-    const { data: rows } = await db
+    const { data, error } = await db.rpc("get_customer_login_email", { login_input: cpf });
+    if (!error && data) {
+      const email = readRpcEmail(data);
+      if (email) return email;
+    }
+    if (error) console.warn("RPC get_customer_login_email erro:", error.message);
+  } catch (e) {
+    console.warn("RPC get_customer_login_email falhou:", e);
+  }
+
+  // Tentativa 2: RPC legada get_customer_email_by_cpf
+  try {
+    const { data, error } = await db.rpc("get_customer_email_by_cpf", { cpf_input: cpf });
+    if (!error && data) {
+      const email = readRpcEmail(data);
+      if (email) return email;
+    }
+    if (error) console.warn("RPC get_customer_email_by_cpf erro:", error.message);
+  } catch (e) {
+    console.warn("RPC get_customer_email_by_cpf falhou:", e);
+  }
+
+  // Tentativa 3: busca direta na tabela customers
+  // Tenta tanto CPF formatado (000.000.000-00) quanto só dígitos
+  try {
+    const cpfFormatado = formatCpf(cpf);
+    const { data: rows, error } = await db
       .from("customers")
       .select("email")
-      .or(`cpf.eq.${formatCpf(cpf)},cpf.eq.${cpf}`)
+      .or(`cpf.eq.${cpfFormatado},cpf.eq.${cpf}`)
       .not("email", "is", null)
       .limit(1)
       .maybeSingle();
 
-    if (rows?.email) return normalizeEmail(rows.email);
-  } catch (fallbackErr) {
-    console.warn("Busca direta por CPF na tabela customers falhou:", fallbackErr);
+    if (!error && rows?.email) return normalizeEmail(rows.email);
+    if (error) console.warn("Busca direta customers por CPF erro:", error.message);
+  } catch (e) {
+    console.warn("Busca direta customers por CPF falhou:", e);
   }
 
   return "";
@@ -1048,13 +1053,12 @@ async function fetchPortfolioData() {
 }
 
 // ===============================
-// BUSCAR AVALIAÇÕES — com nome real do cliente
+// BUSCAR AVALIAÇÕES
 // ===============================
 async function fetchTestimonialsData() {
   if (!db) return [];
 
   try {
-    // Join reviews -> customers para pegar o nome real
     const { data, error } = await db
       .from("reviews")
       .select(`
@@ -1428,7 +1432,7 @@ function getProjectAlbumOverlay() {
 }
 
 // ===============================
-// RENDER AVALIAÇÕES — nome visível
+// RENDER AVALIAÇÕES
 // ===============================
 function renderTestimonials(data) {
   const grid = document.querySelector(".testimonials-grid");
@@ -1559,7 +1563,7 @@ window.addEventListener(
   () => {
     if (!nav) return;
     if (window.innerWidth > 900) {
-      nav.style.background = ""; // Mantém o estilo CSS fixo no topo do desktop
+      nav.style.background = "";
     } else {
       nav.style.background =
         window.scrollY > 60
@@ -1585,7 +1589,6 @@ window.addEventListener("resize", () => {
 // INICIAR SITE
 // ===============================
 async function init() {
-  // Garante visibilidade das partes estáticas do site logo de cara, mesmo se houver erro no BD
   setupRevealAnimation();
 
   try {
@@ -1622,7 +1625,6 @@ document.querySelectorAll(".client-auth-tab").forEach((btn) => {
   btn.addEventListener("click", () => switchClientAuthTab(btn.dataset.clientAuthTab));
 });
 
-// Botão de sessão: se logado, abre o painel de conta; se não, abre o login
 document.getElementById("clientSessionBtn")?.addEventListener("click", async () => {
   if (adminLogado) {
     window.location.href = "admin.html";
@@ -1664,11 +1666,19 @@ document.getElementById("cliente-cad-cpf")?.addEventListener("input", function (
   this.value = formatCpf(this.value);
 });
 
+// FIX: máscara de CPF no campo de login — só aplica se for exclusivamente dígitos (sem @)
 document.getElementById("cliente-login-id")?.addEventListener("input", function () {
-  const v = this.value;
-  // Formata como CPF apenas se não contiver @ (não é e-mail) e só tiver dígitos, pontos e traço
-  if (!v.includes("@") && /^[\d.\-\s]+$/.test(v)) {
-    this.value = formatCpf(v);
+  const raw = this.value;
+  // Só formata como CPF se não tiver @ (não é e-mail) e só tiver dígitos
+  if (!raw.includes("@") && /^\d+$/.test(raw.replace(/[\.\-]/g, ""))) {
+    const digits = normalizeCpf(raw);
+    if (digits.length <= 11) {
+      const cursorPos = this.selectionStart;
+      const formatted = formatCpf(digits);
+      this.value = formatted;
+      // Reposiciona o cursor para não saltar pro fim ao digitar no meio
+      try { this.setSelectionRange(cursorPos, cursorPos); } catch(e) {}
+    }
   }
 });
 
@@ -1720,6 +1730,15 @@ document.getElementById("formClienteLogin")?.addEventListener("submit", async fu
     return;
   }
 
+  // Valida CPF: se não tem @, verifica se tem exatamente 11 dígitos
+  if (!credential.includes("@")) {
+    const cpfDigits = normalizeCpf(credential);
+    if (cpfDigits.length !== 11) {
+      errorBox.textContent = "CPF inválido. Informe os 11 dígitos ou use seu e-mail.";
+      return;
+    }
+  }
+
   if (submitButton) {
     submitButton.disabled = true;
     submitButton.textContent = "Entrando...";
@@ -1739,7 +1758,7 @@ document.getElementById("formClienteLogin")?.addEventListener("submit", async fu
     const { error } = await db.auth.signInWithPassword({ email, password });
     if (error) {
       console.error("Erro Supabase no login do cliente:", error);
-      errorBox.textContent = "Cliente ou senha inválidos.";
+      errorBox.textContent = "E-mail/CPF ou senha inválidos.";
       return;
     }
 
