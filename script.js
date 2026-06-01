@@ -787,18 +787,34 @@ async function loadAccountDocuments() {
 }
 
 async function resolveEmailFromCredential(credential) {
-  if (credential.includes("@")) return normalizeEmail(credential);
-
-  const cpf = normalizeCpf(credential);
-  if (cpf.length !== 11) return "";
   if (!db) return "";
 
-  const { data, error } = await db.rpc("get_customer_email_by_cpf", {
-    cpf_input: cpf
+  const login = (credential || "").trim();
+  if (!login) return "";
+
+  if (login.includes("@")) return normalizeEmail(login);
+
+  const cpf = normalizeCpf(login);
+  if (cpf.length !== 11) return "";
+
+  const readRpcEmail = (data) => {
+    if (typeof data === "string") return normalizeEmail(data);
+    if (Array.isArray(data)) return normalizeEmail(data[0]?.email || data[0]);
+    return normalizeEmail(data?.email);
+  };
+
+  let response = await db.rpc("get_customer_login_email", {
+    login_input: cpf
   });
 
-  if (error) throw error;
-  return normalizeEmail(data);
+  if (response.error?.code === "PGRST202" || response.error?.code === "42883") {
+    response = await db.rpc("get_customer_email_by_cpf", {
+      cpf_input: cpf
+    });
+  }
+
+  if (response.error) throw response.error;
+  return readRpcEmail(response.data);
 }
 
 async function loadClientProfile() {
