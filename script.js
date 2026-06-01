@@ -792,8 +792,10 @@ async function resolveEmailFromCredential(credential) {
   const login = (credential || "").trim();
   if (!login) return "";
 
+  // E-mail: retorna diretamente
   if (login.includes("@")) return normalizeEmail(login);
 
+  // CPF: normaliza para só dígitos
   const cpf = normalizeCpf(login);
   if (cpf.length !== 11) return "";
 
@@ -803,18 +805,45 @@ async function resolveEmailFromCredential(credential) {
     return normalizeEmail(data?.email);
   };
 
+  // Tentativa 1: RPC mais completa (busca em auth.users + customers)
   let response = await db.rpc("get_customer_login_email", {
     login_input: cpf
   });
 
+  // Fallback: se a RPC não existe, usa a antiga
   if (response.error?.code === "PGRST202" || response.error?.code === "42883") {
     response = await db.rpc("get_customer_email_by_cpf", {
       cpf_input: cpf
     });
   }
 
-  if (response.error) throw response.error;
-  return readRpcEmail(response.data);
+  // Se encontrou, retorna
+  if (!response.error && response.data) {
+    const email = readRpcEmail(response.data);
+    if (email) return email;
+  }
+
+  // Log detalhado para depuração sem bloquear o fluxo
+  if (response.error) {
+    console.warn("RPC get_customer_login_email retornou erro:", response.error);
+  }
+
+  // Tentativa 2: busca direta na tabela customers por CPF formatado ou sem formatação
+  try {
+    const { data: rows } = await db
+      .from("customers")
+      .select("email")
+      .or(`cpf.eq.${formatCpf(cpf)},cpf.eq.${cpf}`)
+      .not("email", "is", null)
+      .limit(1)
+      .maybeSingle();
+
+    if (rows?.email) return normalizeEmail(rows.email);
+  } catch (fallbackErr) {
+    console.warn("Busca direta por CPF na tabela customers falhou:", fallbackErr);
+  }
+
+  return "";
 }
 
 async function loadClientProfile() {
@@ -1636,7 +1665,11 @@ document.getElementById("cliente-cad-cpf")?.addEventListener("input", function (
 });
 
 document.getElementById("cliente-login-id")?.addEventListener("input", function () {
-  if (/^\d[\d.\-]*$/.test(this.value)) this.value = formatCpf(this.value);
+  const v = this.value;
+  // Formata como CPF apenas se não contiver @ (não é e-mail) e só tiver dígitos, pontos e traço
+  if (!v.includes("@") && /^[\d.\-\s]+$/.test(v)) {
+    this.value = formatCpf(v);
+  }
 });
 
 document.getElementById("cliente-cad-phone")?.addEventListener("input", function () {
@@ -1697,7 +1730,9 @@ document.getElementById("formClienteLogin")?.addEventListener("submit", async fu
 
     const email = await resolveEmailFromCredential(credential);
     if (!email) {
-      errorBox.textContent = "Cliente não encontrado.";
+      errorBox.textContent = credential.includes("@")
+        ? "E-mail não encontrado."
+        : "CPF não encontrado. Verifique os dígitos ou use seu e-mail para entrar.";
       return;
     }
 
