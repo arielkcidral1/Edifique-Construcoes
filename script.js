@@ -779,74 +779,84 @@ async function loadAccountDocuments() {
 }
 
 // ===============================
-// FIX: resolveEmailFromCredential
+// ===============================
+// resolveEmailFromCredential
 // ===============================
 async function resolveEmailFromCredential(credential) {
   if (!db) return "";
 
-  // Remove espaços, pontos, traços e qualquer caractere não-dígito/não-@
   const login = (credential || "").trim();
   if (!login) return "";
 
-  // --- É e-mail ---
+  // --- É e-mail: retorna direto ---
   if (login.includes("@")) return normalizeEmail(login);
 
-  // --- É CPF: normaliza para apenas dígitos ---
-  const cpf = normalizeCpf(login); // remove TODOS os não-dígitos
+  // --- É CPF: extrai só os dígitos ---
+  const cpf = normalizeCpf(login);
 
-  // CPF brasileiro sempre tem 11 dígitos
-  if (cpf.length !== 11) {
-    console.warn("resolveEmailFromCredential: CPF inválido (não tem 11 dígitos)", { login, cpf, cpfLength: cpf.length });
-    return "";
-  }
+  if (cpf.length !== 11) return "";
 
-  const readRpcEmail = (data) => {
-    if (typeof data === "string") return normalizeEmail(data);
-    if (Array.isArray(data)) return normalizeEmail(data[0]?.email || data[0]);
-    return normalizeEmail(data?.email || "");
-  };
+  const cpfFormatado = formatCpf(cpf); // "000.000.000-00"
 
-  // Tentativa 1: RPC get_customer_login_email (aceita CPF com ou sem máscara)
+  // Tentativa 1: RPC get_customer_login_email
   try {
     const { data, error } = await db.rpc("get_customer_login_email", { login_input: cpf });
     if (!error && data) {
-      const email = readRpcEmail(data);
+      const email = typeof data === "string"
+        ? normalizeEmail(data)
+        : normalizeEmail(Array.isArray(data) ? (data[0]?.email || data[0]) : (data?.email || ""));
       if (email) return email;
     }
-    if (error) console.warn("RPC get_customer_login_email erro:", error.message);
-  } catch (e) {
-    console.warn("RPC get_customer_login_email falhou:", e);
-  }
+  } catch (_) {}
 
-  // Tentativa 2: RPC legada get_customer_email_by_cpf
+  // Tentativa 2: RPC get_customer_email_by_cpf (legada)
   try {
     const { data, error } = await db.rpc("get_customer_email_by_cpf", { cpf_input: cpf });
     if (!error && data) {
-      const email = readRpcEmail(data);
+      const email = typeof data === "string"
+        ? normalizeEmail(data)
+        : normalizeEmail(Array.isArray(data) ? (data[0]?.email || data[0]) : (data?.email || ""));
       if (email) return email;
     }
-    if (error) console.warn("RPC get_customer_email_by_cpf erro:", error.message);
-  } catch (e) {
-    console.warn("RPC get_customer_email_by_cpf falhou:", e);
-  }
+  } catch (_) {}
 
-  // Tentativa 3: busca direta na tabela customers
-  // Tenta tanto CPF formatado (000.000.000-00) quanto só dígitos
+  // Tentativa 3: busca direta por CPF formatado (000.000.000-00)
+  // O .or() do PostgREST quebra com pontos/traços sem aspas — usar .eq() separado é mais seguro
   try {
-    const cpfFormatado = formatCpf(cpf);
-    const { data: rows, error } = await db
+    const { data, error } = await db
       .from("customers")
       .select("email")
-      .or(`cpf.eq.${cpfFormatado},cpf.eq.${cpf}`)
+      .eq("cpf", cpfFormatado)
       .not("email", "is", null)
       .limit(1)
       .maybeSingle();
+    if (!error && data?.email) return normalizeEmail(data.email);
+  } catch (_) {}
 
-    if (!error && rows?.email) return normalizeEmail(rows.email);
-    if (error) console.warn("Busca direta customers por CPF erro:", error.message);
-  } catch (e) {
-    console.warn("Busca direta customers por CPF falhou:", e);
-  }
+  // Tentativa 4: busca por CPF sem formatação (só dígitos)
+  try {
+    const { data, error } = await db
+      .from("customers")
+      .select("email")
+      .eq("cpf", cpf)
+      .not("email", "is", null)
+      .limit(1)
+      .maybeSingle();
+    if (!error && data?.email) return normalizeEmail(data.email);
+  } catch (_) {}
+
+  // Tentativa 5: busca via ilike para cobrir variações de formatação
+  try {
+    const { data, error } = await db
+      .from("customers")
+      .select("email, cpf")
+      .not("cpf", "is", null)
+      .not("email", "is", null);
+    if (!error && Array.isArray(data)) {
+      const found = data.find(row => normalizeCpf(row.cpf) === cpf);
+      if (found?.email) return normalizeEmail(found.email);
+    }
+  } catch (_) {}
 
   return "";
 }
