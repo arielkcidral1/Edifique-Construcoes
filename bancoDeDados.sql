@@ -169,49 +169,91 @@ UPDATE auth.users
 SET email_confirmed_at = COALESCE(email_confirmed_at, now())
 WHERE email_confirmed_at IS NULL;
 
-CREATE OR REPLACE FUNCTION public.get_customer_email_by_cpf(cpf_input TEXT)
-RETURNS TEXT
-LANGUAGE sql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-  SELECT lower(trim(COALESCE(au.email, c.email)))
-  FROM public.customers c
-  LEFT JOIN auth.users au ON au.id = c.user_id
-  WHERE regexp_replace(COALESCE(c.cpf, ''), '\D', '', 'g') = regexp_replace(COALESCE(cpf_input, ''), '\D', '', 'g')
-    AND regexp_replace(COALESCE(cpf_input, ''), '\D', '', 'g') <> ''
-  LIMIT 1;
-$$;
-
-REVOKE ALL ON FUNCTION public.get_customer_email_by_cpf(TEXT) FROM public;
-GRANT EXECUTE ON FUNCTION public.get_customer_email_by_cpf(TEXT) TO anon, authenticated;
-
 CREATE OR REPLACE FUNCTION public.get_customer_login_email(login_input TEXT)
 RETURNS TEXT
 LANGUAGE sql
 SECURITY DEFINER
 SET search_path = public
 AS $$
-  SELECT lower(trim(COALESCE(au.email, c.email)))
-  FROM public.customers c
-  LEFT JOIN auth.users au ON au.id = c.user_id
-  WHERE (
-      position('@' in COALESCE(login_input, '')) > 0
-      AND (
-        lower(trim(c.email)) = lower(trim(login_input))
-        OR lower(trim(au.email)) = lower(trim(login_input))
+  WITH normalized AS (
+    SELECT
+      lower(trim(COALESCE(login_input, ''))) AS login,
+      regexp_replace(COALESCE(login_input, ''), '\D', '', 'g') AS cpf_digits,
+      position('@' in COALESCE(login_input, '')) > 0 AS is_email
+  ),
+  candidates AS (
+    SELECT au.email, 1 AS priority
+    FROM auth.users au
+    CROSS JOIN normalized n
+    WHERE n.is_email
+      AND lower(trim(au.email)) = n.login
+
+    UNION ALL
+
+    SELECT au.email, 2 AS priority
+    FROM auth.users au
+    CROSS JOIN normalized n
+    WHERE NOT n.is_email
+      AND n.cpf_digits <> ''
+      AND regexp_replace(COALESCE(au.raw_user_meta_data ->> 'cpf', ''), '\D', '', 'g') = n.cpf_digits
+
+    UNION ALL
+
+    SELECT au.email, 3 AS priority
+    FROM public.customers c
+    JOIN auth.users au ON au.id = c.user_id
+    CROSS JOIN normalized n
+    WHERE NOT n.is_email
+      AND n.cpf_digits <> ''
+      AND regexp_replace(COALESCE(c.cpf, ''), '\D', '', 'g') = n.cpf_digits
+
+    UNION ALL
+
+    SELECT au.email, 4 AS priority
+    FROM public.customers c
+    JOIN auth.users au ON lower(trim(au.email)) = lower(trim(c.email))
+    CROSS JOIN normalized n
+    WHERE NOT n.is_email
+      AND n.cpf_digits <> ''
+      AND regexp_replace(COALESCE(c.cpf, ''), '\D', '', 'g') = n.cpf_digits
+
+    UNION ALL
+
+    SELECT c.email, 5 AS priority
+    FROM public.customers c
+    CROSS JOIN normalized n
+    WHERE (
+        n.is_email
+        AND lower(trim(c.email)) = n.login
       )
-    )
-    OR (
-      position('@' in COALESCE(login_input, '')) = 0
-      AND regexp_replace(COALESCE(c.cpf, ''), '\D', '', 'g') = regexp_replace(COALESCE(login_input, ''), '\D', '', 'g')
-      AND regexp_replace(COALESCE(login_input, ''), '\D', '', 'g') <> ''
-    )
+      OR (
+        NOT n.is_email
+        AND n.cpf_digits <> ''
+        AND regexp_replace(COALESCE(c.cpf, ''), '\D', '', 'g') = n.cpf_digits
+      )
+  )
+  SELECT lower(trim(email))
+  FROM candidates
+  WHERE email IS NOT NULL
+    AND trim(email) <> ''
+  ORDER BY priority
   LIMIT 1;
 $$;
 
 REVOKE ALL ON FUNCTION public.get_customer_login_email(TEXT) FROM public;
 GRANT EXECUTE ON FUNCTION public.get_customer_login_email(TEXT) TO anon, authenticated;
+
+CREATE OR REPLACE FUNCTION public.get_customer_email_by_cpf(cpf_input TEXT)
+RETURNS TEXT
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT public.get_customer_login_email(cpf_input);
+$$;
+
+REVOKE ALL ON FUNCTION public.get_customer_email_by_cpf(TEXT) FROM public;
+GRANT EXECUTE ON FUNCTION public.get_customer_email_by_cpf(TEXT) TO anon, authenticated;
 
 CREATE OR REPLACE FUNCTION public.upsert_customer_profile(
   name_input TEXT,
