@@ -1,9 +1,48 @@
 -- =============================================================
--- FIX LOGIN CPF — Edifique Construções
+-- DIAGNÓSTICO E CORREÇÃO — Login por CPF
 -- Execute no SQL Editor do Supabase (Run All)
 -- =============================================================
 
--- 1. Garante que a função get_customer_login_email existe e está correta
+-- ---------------------------------------------------------------
+-- 1. DIAGNÓSTICO: ver clientes e seus CPFs cadastrados
+-- ---------------------------------------------------------------
+SELECT
+  c.id,
+  c.name,
+  c.email,
+  c.cpf                                           AS cpf_na_tabela,
+  regexp_replace(COALESCE(c.cpf, ''), '\D', '', 'g') AS cpf_somente_digitos,
+  au.raw_user_meta_data ->> 'cpf'                AS cpf_nos_metadados,
+  c.user_id,
+  au.id                                           AS auth_user_id
+FROM public.customers c
+LEFT JOIN auth.users au ON au.id = c.user_id
+ORDER BY c.id DESC
+LIMIT 30;
+
+-- ---------------------------------------------------------------
+-- 2. CORREÇÃO: padroniza o CPF na tabela customers para só dígitos
+--    (evita incompatibilidade entre "000.000.000-00" e "00000000000")
+-- ---------------------------------------------------------------
+UPDATE public.customers
+SET cpf = regexp_replace(COALESCE(cpf, ''), '\D', '', 'g')
+WHERE cpf IS NOT NULL
+  AND cpf ~ '\D';   -- só atualiza se tiver pontos, traços ou espaços
+
+-- ---------------------------------------------------------------
+-- 3. CORREÇÃO: copia CPF dos metadados auth → customers quando faltando
+-- ---------------------------------------------------------------
+UPDATE public.customers c
+SET cpf = regexp_replace(au.raw_user_meta_data ->> 'cpf', '\D', '', 'g')
+FROM auth.users au
+WHERE au.id = c.user_id
+  AND (c.cpf IS NULL OR trim(c.cpf) = '')
+  AND au.raw_user_meta_data ->> 'cpf' IS NOT NULL
+  AND trim(au.raw_user_meta_data ->> 'cpf') <> '';
+
+-- ---------------------------------------------------------------
+-- 4. Garante que a função RPC está correta e recebe CPF em qualquer formato
+-- ---------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.get_customer_login_email(login_input TEXT)
 RETURNS TEXT
 LANGUAGE sql
@@ -85,7 +124,7 @@ $$;
 REVOKE ALL ON FUNCTION public.get_customer_login_email(TEXT) FROM public;
 GRANT EXECUTE ON FUNCTION public.get_customer_login_email(TEXT) TO anon, authenticated;
 
--- 2. Alias legado
+-- Alias legado
 CREATE OR REPLACE FUNCTION public.get_customer_email_by_cpf(cpf_input TEXT)
 RETURNS TEXT
 LANGUAGE sql
@@ -98,41 +137,16 @@ $$;
 REVOKE ALL ON FUNCTION public.get_customer_email_by_cpf(TEXT) FROM public;
 GRANT EXECUTE ON FUNCTION public.get_customer_email_by_cpf(TEXT) TO anon, authenticated;
 
--- 3. Sincroniza CPF dos metadados do auth para a tabela customers
-UPDATE public.customers c
-SET cpf = regexp_replace(au.raw_user_meta_data ->> 'cpf', '\D', '', 'g')
-FROM auth.users au
-WHERE au.id = c.user_id
-  AND (c.cpf IS NULL OR trim(c.cpf) = '')
-  AND au.raw_user_meta_data ->> 'cpf' IS NOT NULL
-  AND trim(au.raw_user_meta_data ->> 'cpf') <> '';
+-- ---------------------------------------------------------------
+-- 5. TESTE — substitua pelo CPF real de um cliente e verifique o retorno
+-- ---------------------------------------------------------------
+-- SELECT public.get_customer_login_email('00000000000');   -- só dígitos
+-- SELECT public.get_customer_login_email('000.000.000-00'); -- formatado
 
--- 4. Garante que todos os auth.users têm entrada na tabela customers
-INSERT INTO public.customers (user_id, name, email, cpf, phone)
-SELECT
-  au.id,
-  COALESCE(NULLIF(trim(au.raw_user_meta_data ->> 'name'), ''), au.email, 'Cliente'),
-  COALESCE(au.email, ''),
-  NULLIF(regexp_replace(COALESCE(au.raw_user_meta_data ->> 'cpf', ''), '\D', '', 'g'), ''),
-  NULLIF(trim(au.raw_user_meta_data ->> 'phone'), '')
-FROM auth.users au
-WHERE au.email IS NOT NULL
-  AND lower(au.email) <> 'admin@edifique.com'
-ON CONFLICT (email) DO UPDATE SET
-  user_id = COALESCE(public.customers.user_id, EXCLUDED.user_id),
-  name    = CASE
-              WHEN public.customers.name IS NULL
-                OR public.customers.name = ''
-                OR public.customers.name = public.customers.email
-              THEN EXCLUDED.name
-              ELSE public.customers.name
-            END,
-  cpf     = COALESCE(EXCLUDED.cpf, public.customers.cpf),
-  phone   = COALESCE(EXCLUDED.phone, public.customers.phone);
-
--- 5. Teste — substitua pelo CPF real de um cliente
--- SELECT public.get_customer_login_email('00000000000');
--- SELECT public.get_customer_login_email('000.000.000-00');
-
--- 6. Mostra todos os clientes com CPF para conferir
-SELECT id, name, email, cpf FROM public.customers WHERE cpf IS NOT NULL ORDER BY id DESC LIMIT 20;
+-- ---------------------------------------------------------------
+-- 6. Conferir resultado final
+-- ---------------------------------------------------------------
+SELECT id, name, email, cpf FROM public.customers
+WHERE cpf IS NOT NULL AND cpf <> ''
+ORDER BY id DESC
+LIMIT 20;

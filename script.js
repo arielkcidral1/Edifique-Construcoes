@@ -798,30 +798,45 @@ async function resolveEmailFromCredential(credential) {
 
   const cpfFormatado = formatCpf(cpf); // "000.000.000-00"
 
-  // Tentativa 1: RPC get_customer_login_email
+  console.log("[login-cpf] Iniciando busca para CPF:", cpf, "/ formatado:", cpfFormatado);
+
+  // Tentativa 1: RPC get_customer_login_email (passa dígitos puros)
   try {
     const { data, error } = await db.rpc("get_customer_login_email", { login_input: cpf });
+    console.log("[login-cpf] RPC get_customer_login_email (dígitos):", { data, error });
     if (!error && data) {
       const email = typeof data === "string"
         ? normalizeEmail(data)
         : normalizeEmail(Array.isArray(data) ? (data[0]?.email || data[0]) : (data?.email || ""));
-      if (email) return email;
+      if (email) { console.log("[login-cpf] Resolvido via RPC (dígitos):", email); return email; }
     }
-  } catch (_) {}
+  } catch (e) { console.warn("[login-cpf] RPC get_customer_login_email (dígitos) erro:", e); }
 
-  // Tentativa 2: RPC get_customer_email_by_cpf (legada)
+  // Tentativa 2: RPC get_customer_login_email (passa CPF formatado)
+  try {
+    const { data, error } = await db.rpc("get_customer_login_email", { login_input: cpfFormatado });
+    console.log("[login-cpf] RPC get_customer_login_email (formatado):", { data, error });
+    if (!error && data) {
+      const email = typeof data === "string"
+        ? normalizeEmail(data)
+        : normalizeEmail(Array.isArray(data) ? (data[0]?.email || data[0]) : (data?.email || ""));
+      if (email) { console.log("[login-cpf] Resolvido via RPC (formatado):", email); return email; }
+    }
+  } catch (e) { console.warn("[login-cpf] RPC get_customer_login_email (formatado) erro:", e); }
+
+  // Tentativa 3: RPC get_customer_email_by_cpf (legada)
   try {
     const { data, error } = await db.rpc("get_customer_email_by_cpf", { cpf_input: cpf });
+    console.log("[login-cpf] RPC get_customer_email_by_cpf:", { data, error });
     if (!error && data) {
       const email = typeof data === "string"
         ? normalizeEmail(data)
         : normalizeEmail(Array.isArray(data) ? (data[0]?.email || data[0]) : (data?.email || ""));
-      if (email) return email;
+      if (email) { console.log("[login-cpf] Resolvido via RPC legada:", email); return email; }
     }
-  } catch (_) {}
+  } catch (e) { console.warn("[login-cpf] RPC get_customer_email_by_cpf erro:", e); }
 
-  // Tentativa 3: busca direta por CPF formatado (000.000.000-00)
-  // O .or() do PostgREST quebra com pontos/traços sem aspas — usar .eq() separado é mais seguro
+  // Tentativa 4: busca direta por CPF formatado (000.000.000-00)
   try {
     const { data, error } = await db
       .from("customers")
@@ -830,10 +845,11 @@ async function resolveEmailFromCredential(credential) {
       .not("email", "is", null)
       .limit(1)
       .maybeSingle();
-    if (!error && data?.email) return normalizeEmail(data.email);
-  } catch (_) {}
+    console.log("[login-cpf] Busca direta CPF formatado:", { data, error });
+    if (!error && data?.email) { console.log("[login-cpf] Resolvido via busca formatado:", data.email); return normalizeEmail(data.email); }
+  } catch (e) { console.warn("[login-cpf] Busca CPF formatado erro:", e); }
 
-  // Tentativa 4: busca por CPF sem formatação (só dígitos)
+  // Tentativa 5: busca por CPF sem formatação (só dígitos)
   try {
     const { data, error } = await db
       .from("customers")
@@ -842,22 +858,26 @@ async function resolveEmailFromCredential(credential) {
       .not("email", "is", null)
       .limit(1)
       .maybeSingle();
-    if (!error && data?.email) return normalizeEmail(data.email);
-  } catch (_) {}
+    console.log("[login-cpf] Busca direta CPF dígitos:", { data, error });
+    if (!error && data?.email) { console.log("[login-cpf] Resolvido via busca dígitos:", data.email); return normalizeEmail(data.email); }
+  } catch (e) { console.warn("[login-cpf] Busca CPF dígitos erro:", e); }
 
-  // Tentativa 5: busca via ilike para cobrir variações de formatação
+  // Tentativa 6: busca full-scan normalizando CPF client-side (cobre qualquer formato no banco)
   try {
     const { data, error } = await db
       .from("customers")
       .select("email, cpf")
       .not("cpf", "is", null)
       .not("email", "is", null);
+    console.log("[login-cpf] Full-scan customers CPF:", { count: data?.length, error });
     if (!error && Array.isArray(data)) {
       const found = data.find(row => normalizeCpf(row.cpf) === cpf);
-      if (found?.email) return normalizeEmail(found.email);
+      console.log("[login-cpf] Full-scan resultado:", found || "não encontrado");
+      if (found?.email) { console.log("[login-cpf] Resolvido via full-scan:", found.email); return normalizeEmail(found.email); }
     }
-  } catch (_) {}
+  } catch (e) { console.warn("[login-cpf] Full-scan erro:", e); }
 
+  console.warn("[login-cpf] CPF não encontrado em nenhuma tentativa:", cpf);
   return "";
 }
 
