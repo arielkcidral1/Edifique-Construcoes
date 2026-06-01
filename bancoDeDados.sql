@@ -175,9 +175,10 @@ LANGUAGE sql
 SECURITY DEFINER
 SET search_path = public
 AS $$
-  SELECT lower(trim(email))
-  FROM public.customers
-  WHERE regexp_replace(COALESCE(cpf, ''), '\D', '', 'g') = regexp_replace(COALESCE(cpf_input, ''), '\D', '', 'g')
+  SELECT lower(trim(COALESCE(au.email, c.email)))
+  FROM public.customers c
+  LEFT JOIN auth.users au ON au.id = c.user_id
+  WHERE regexp_replace(COALESCE(c.cpf, ''), '\D', '', 'g') = regexp_replace(COALESCE(cpf_input, ''), '\D', '', 'g')
     AND regexp_replace(COALESCE(cpf_input, ''), '\D', '', 'g') <> ''
   LIMIT 1;
 $$;
@@ -191,15 +192,19 @@ LANGUAGE sql
 SECURITY DEFINER
 SET search_path = public
 AS $$
-  SELECT lower(trim(email))
-  FROM public.customers
+  SELECT lower(trim(COALESCE(au.email, c.email)))
+  FROM public.customers c
+  LEFT JOIN auth.users au ON au.id = c.user_id
   WHERE (
       position('@' in COALESCE(login_input, '')) > 0
-      AND lower(trim(email)) = lower(trim(login_input))
+      AND (
+        lower(trim(c.email)) = lower(trim(login_input))
+        OR lower(trim(au.email)) = lower(trim(login_input))
+      )
     )
     OR (
       position('@' in COALESCE(login_input, '')) = 0
-      AND regexp_replace(COALESCE(cpf, ''), '\D', '', 'g') = regexp_replace(COALESCE(login_input, ''), '\D', '', 'g')
+      AND regexp_replace(COALESCE(c.cpf, ''), '\D', '', 'g') = regexp_replace(COALESCE(login_input, ''), '\D', '', 'g')
       AND regexp_replace(COALESCE(login_input, ''), '\D', '', 'g') <> ''
     )
   LIMIT 1;
