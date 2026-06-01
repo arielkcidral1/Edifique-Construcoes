@@ -137,6 +137,8 @@ $$;
 REVOKE ALL ON FUNCTION public.get_customer_email_by_cpf(TEXT) FROM public;
 GRANT EXECUTE ON FUNCTION public.get_customer_email_by_cpf(TEXT) TO anon, authenticated;
 
+NOTIFY pgrst, 'reload schema';
+
 -- ---------------------------------------------------------------
 -- 5. TESTE — substitua pelo CPF real de um cliente e verifique o retorno
 -- ---------------------------------------------------------------

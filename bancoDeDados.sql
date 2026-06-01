@@ -255,6 +255,8 @@ $$;
 REVOKE ALL ON FUNCTION public.get_customer_email_by_cpf(TEXT) FROM public;
 GRANT EXECUTE ON FUNCTION public.get_customer_email_by_cpf(TEXT) TO anon, authenticated;
 
+NOTIFY pgrst, 'reload schema';
+
 CREATE OR REPLACE FUNCTION public.upsert_customer_profile(
   name_input TEXT,
   email_input TEXT,
