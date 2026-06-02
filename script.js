@@ -1753,14 +1753,6 @@ document.getElementById("formClienteLogin")?.addEventListener("submit", async fu
     }
 
     await loadClientProfile();
-    if (!clienteLogado?.id) {
-      try {
-        await ensureCustomerProfile({ name: email, email });
-        await loadClientProfile();
-      } catch (profileError) {
-        console.warn("Nao foi possivel preparar o cadastro do cliente:", profileError);
-      }
-    }
     closeClientAuth();
     updateClientSessionUI();
     runInBackground(updateCondominiumsMenu, "Nao foi possivel atualizar o menu de condominios:");
