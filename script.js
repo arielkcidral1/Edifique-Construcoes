@@ -561,21 +561,30 @@ function buildAccountPanel() {
 
   // Delete account
   panel.querySelector("#accountDeleteBtn").addEventListener("click", async () => {
-    if (!confirm("Tem certeza que deseja excluir sua conta? Esta ação é permanente.")) return;
+    if (!confirm("Tem certeza que deseja excluir sua conta? Esta acao e permanente e nao pode ser desfeita.")) return;
+
+    const btn = panel.querySelector("#accountDeleteBtn");
+    btn.disabled = true;
+    btn.textContent = "Excluindo...";
+
     try {
-      if (db) await db.auth.signOut();
-    } catch (err) {
-      console.warn("Erro ao sair:", err);
-    } finally {
-      [localStorage, sessionStorage].forEach((s) => {
-        try { Object.keys(s).filter(k => k.startsWith("sb-")).forEach(k => s.removeItem(k)); } catch(e) {}
-      });
+      if (!db) throw new Error("Banco de dados offline.");
+
+      const { error } = await db.rpc("delete_own_account");
+      if (error) throw error;
+
+      clearSupabaseAuthStorage();
       clienteLogado = null;
       updateClientSessionUI();
       runInBackground(updateCondominiumsMenu, "Nao foi possivel atualizar o menu apos exclusao:");
       closeAccountPanel();
-      alert("Sua solicitação de exclusão foi registrada. Entraremos em contato para concluir o processo.");
+      alert("Sua conta foi excluida com sucesso.");
       window.location.replace("index.html");
+    } catch (err) {
+      console.error("Erro ao excluir conta:", err);
+      alert("Nao foi possivel excluir sua conta agora. Tente novamente.");
+      btn.disabled = false;
+      btn.textContent = "Excluir minha conta";
     }
   });
 
