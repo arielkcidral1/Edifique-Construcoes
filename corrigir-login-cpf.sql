@@ -1,85 +1,110 @@
 -- =====================================================================
--- FIX-CPF-LOGIN-V2.SQL — Reescrita completa e definitiva
+-- FIX-CPF-LOGIN-V3.SQL — Correção com tratamento de duplicatas
 -- Edifique Construções — Execute completo no SQL Editor do Supabase
 -- =====================================================================
---
--- BUGS IDENTIFICADOS (raiz do problema):
---
--- BUG 1 — get_customer_login_email era LANGUAGE sql.
---   Em LANGUAGE sql o SECURITY DEFINER não garante acesso a auth.users
---   quando chamado por anon no Supabase moderno. Precisa ser plpgsql.
---
--- BUG 2 — CPF salvo com máscara (123.456.789-09) via ensureCustomerProfile
---   mas o índice único customers_cpf_digits_key indexa os dígitos puros.
---   Isso cria CONFLITO: se um cliente tem cpf='123.456.789-09' e outro
---   tenta cadastrar com '12345678909', o índice barra a inserção.
---   Solução: normalizar tudo para dígitos puros no banco.
---
--- BUG 3 — upsert_customer_profile usa formatCpf(cpf) para salvar,
---   mantendo a máscara. Isso significa que o cpf real no banco é
---   '123.456.789-09', não '12345678909'. A RPC de login faz regexp_replace
---   dos dois lados — deveria funcionar — mas o índice único conflita
---   com o formato diferente e pode silenciosamente NÃO salvar o cpf.
---
--- BUG 4 — Clientes cadastrados pelo admin via admin_update_customer
---   podem ter cpf NULL se o admin não preencheu, ou com qualquer formato.
---
--- SOLUÇÃO:
---   1. Normalizar TODOS os CPFs existentes para dígitos puros
---   2. Reescrever get_customer_login_email como plpgsql com SECURITY DEFINER
---   3. Corrigir handle_new_user_customer para salvar CPF normalizado
---   4. Corrigir upsert_customer_profile para salvar CPF normalizado
---   5. Corrigir admin_update_customer para salvar CPF normalizado
---   6. Vincular user_id nos registros customers que estão sem ele
--- =====================================================================
 
 -- -------------------------------------------------------------------
--- PASSO 1 — Diagnóstico: estado atual (execute antes para ver o problema)
+-- PASSO 1 — Ver os duplicados (para entender o problema)
 -- -------------------------------------------------------------------
 SELECT
-  c.id,
-  c.name,
-  c.email                                                            AS email_customer,
-  c.cpf                                                              AS cpf_salvo,
-  regexp_replace(COALESCE(c.cpf,''), '\D', '', 'g')                  AS cpf_digitos,
-  c.user_id,
-  au.email                                                           AS email_auth,
-  regexp_replace(
-    COALESCE(au.raw_user_meta_data->>'cpf',''), '\D', '', 'g'
-  )                                                                  AS cpf_meta_digitos,
-  CASE
-    WHEN c.user_id IS NOT NULL                          THEN '✅ vinculado'
-    WHEN au.id IS NOT NULL                              THEN '⚠️  sem user_id'
-    ELSE                                                     '❌ sem auth'
-  END AS status_vinculo,
-  CASE
-    WHEN c.cpf IS NULL OR c.cpf = ''                   THEN '❌ sem CPF'
-    WHEN c.cpf ~ '^\d{11}$'                            THEN '✅ CPF normalizado'
-    ELSE                                                     '⚠️  CPF com máscara'
-  END AS status_cpf
-FROM public.customers c
-LEFT JOIN auth.users au ON lower(trim(au.email)) = lower(trim(c.email))
-WHERE lower(c.email) <> 'admin@edifique.com'
-ORDER BY c.id DESC
-LIMIT 50;
+  regexp_replace(COALESCE(cpf, ''), '\D', '', 'g') AS cpf_digitos,
+  COUNT(*) AS total,
+  array_agg(id ORDER BY id)                         AS ids,
+  array_agg(name ORDER BY id)                       AS nomes,
+  array_agg(email ORDER BY id)                      AS emails,
+  array_agg(cpf ORDER BY id)                        AS cpfs_raw,
+  array_agg(user_id::text ORDER BY id)              AS user_ids
+FROM public.customers
+WHERE cpf IS NOT NULL AND cpf <> ''
+GROUP BY regexp_replace(COALESCE(cpf, ''), '\D', '', 'g')
+HAVING COUNT(*) > 1;
 
 -- -------------------------------------------------------------------
--- PASSO 2 — Normalizar TODOS os CPFs para apenas 11 dígitos
+-- PASSO 2 — Resolver duplicatas: mesclar no registro mais antigo
+--   - Mantém o registro com menor id (mais antigo / mais completo)
+--   - Transfere user_id do duplicado para o registro principal se ele não tiver
+--   - Transfere customer_condominiums, reviews para o id principal
+--   - Deleta o duplicado
+-- -------------------------------------------------------------------
+DO $$
+DECLARE
+  rec     RECORD;
+  main_id BIGINT;
+  dup_id  BIGINT;
+BEGIN
+  -- Itera sobre cada grupo de CPF duplicado
+  FOR rec IN
+    SELECT
+      regexp_replace(COALESCE(cpf, ''), '\D', '', 'g') AS cpf_digits,
+      array_agg(id ORDER BY
+        CASE WHEN user_id IS NOT NULL THEN 0 ELSE 1 END,  -- prefere quem tem user_id
+        id ASC                                              -- depois o mais antigo
+      ) AS ids
+    FROM public.customers
+    WHERE cpf IS NOT NULL AND cpf <> ''
+    GROUP BY regexp_replace(COALESCE(cpf, ''), '\D', '', 'g')
+    HAVING COUNT(*) > 1
+  LOOP
+    main_id := rec.ids[1];  -- registro principal (fica)
+    
+    -- Para cada duplicado (do índice 2 em diante)
+    FOR i IN 2 .. array_length(rec.ids, 1) LOOP
+      dup_id := rec.ids[i];
+      
+      -- Transferir user_id se o principal não tiver
+      UPDATE public.customers
+      SET user_id = (SELECT user_id FROM public.customers WHERE id = dup_id)
+      WHERE id = main_id
+        AND user_id IS NULL
+        AND (SELECT user_id FROM public.customers WHERE id = dup_id) IS NOT NULL;
+
+      -- Reatribuir customer_condominiums do duplicado para o principal
+      UPDATE public.customer_condominiums
+      SET customer_id = main_id
+      WHERE customer_id = dup_id
+        AND NOT EXISTS (
+          SELECT 1 FROM public.customer_condominiums
+          WHERE customer_id = main_id
+            AND condominium_id = (
+              SELECT condominium_id FROM public.customer_condominiums
+              WHERE customer_id = dup_id AND id = public.customer_condominiums.id
+              LIMIT 1
+            )
+        );
+
+      -- Reatribuir reviews do duplicado para o principal
+      UPDATE public.reviews
+      SET customer_id = main_id
+      WHERE customer_id = dup_id;
+
+      -- Deletar o duplicado
+      DELETE FROM public.customer_condominiums WHERE customer_id = dup_id;
+      DELETE FROM public.customers WHERE id = dup_id;
+
+      RAISE NOTICE 'Duplicata resolvida: CPF %, manteve id=%, deletou id=%',
+        rec.cpf_digits, main_id, dup_id;
+    END LOOP;
+  END LOOP;
+END;
+$$;
+
+-- -------------------------------------------------------------------
+-- PASSO 3 — Agora normaliza CPFs com segurança (sem duplicatas)
 -- -------------------------------------------------------------------
 UPDATE public.customers
 SET cpf = regexp_replace(COALESCE(cpf, ''), '\D', '', 'g')
 WHERE cpf IS NOT NULL
   AND cpf <> ''
-  AND cpf !~ '^\d{11}$';   -- só atualiza se não for já 11 dígitos puros
+  AND cpf !~ '^\d{11}$';
 
--- Zerar CPFs que ficaram vazios ou inválidos após normalização
+-- Zerar CPFs inválidos que sobraram
 UPDATE public.customers
 SET cpf = NULL
 WHERE cpf IS NOT NULL
-  AND regexp_replace(cpf, '\D', '', 'g') = '';
+  AND (cpf = '' OR length(regexp_replace(cpf, '\D', '', 'g')) <> 11);
 
 -- -------------------------------------------------------------------
--- PASSO 3 — Copiar CPF dos metadados auth → customers onde está faltando
+-- PASSO 4 — Copiar CPF dos metadados auth → customers onde faltando
 -- -------------------------------------------------------------------
 UPDATE public.customers c
 SET cpf = regexp_replace(
@@ -91,7 +116,7 @@ WHERE au.id = c.user_id
   AND COALESCE(au.raw_user_meta_data->>'cpf', '') <> '';
 
 -- -------------------------------------------------------------------
--- PASSO 4 — Vincular user_id em customers onde está faltando
+-- PASSO 5 — Vincular user_id em customers onde está faltando
 -- -------------------------------------------------------------------
 UPDATE public.customers c
 SET user_id = au.id
@@ -100,8 +125,7 @@ WHERE lower(trim(au.email)) = lower(trim(c.email))
   AND c.user_id IS NULL;
 
 -- -------------------------------------------------------------------
--- PASSO 5 — Corrigir trigger handle_new_user_customer
---   Normaliza CPF para dígitos puros ANTES de inserir
+-- PASSO 6 — Corrigir trigger handle_new_user_customer
 -- -------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION private.handle_new_user_customer()
 RETURNS TRIGGER
@@ -112,11 +136,10 @@ AS $$
 DECLARE
   v_cpf TEXT;
 BEGIN
-  -- Normaliza CPF para apenas dígitos
   v_cpf := regexp_replace(
     COALESCE(NEW.raw_user_meta_data ->> 'cpf', ''), '\D', '', 'g'
   );
-  IF v_cpf = '' THEN v_cpf := NULL; END IF;
+  IF v_cpf = '' OR length(v_cpf) <> 11 THEN v_cpf := NULL; END IF;
 
   INSERT INTO public.customers (user_id, name, email, cpf, phone, avatar_url)
   VALUES (
@@ -137,7 +160,6 @@ BEGIN
   RETURN NEW;
 EXCEPTION
   WHEN unique_violation THEN
-    -- Conflito de CPF: atualiza user_id no registro existente
     UPDATE public.customers
     SET user_id = COALESCE(public.customers.user_id, NEW.id)
     WHERE lower(trim(email)) = lower(trim(COALESCE(NEW.email, '')));
@@ -146,8 +168,7 @@ END;
 $$;
 
 -- -------------------------------------------------------------------
--- PASSO 6 — Corrigir upsert_customer_profile
---   Salva CPF como dígitos puros, nunca com máscara
+-- PASSO 7 — Corrigir upsert_customer_profile (salva CPF normalizado)
 -- -------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.upsert_customer_profile(
   name_input  TEXT,
@@ -173,9 +194,8 @@ BEGIN
     RAISE EXCEPTION 'E-mail não corresponde ao usuário autenticado.' USING ERRCODE = '42501';
   END IF;
 
-  -- Normaliza CPF para apenas dígitos
   v_cpf := regexp_replace(COALESCE(cpf_input, ''), '\D', '', 'g');
-  IF v_cpf = '' THEN v_cpf := NULL; END IF;
+  IF v_cpf = '' OR length(v_cpf) <> 11 THEN v_cpf := NULL; END IF;
 
   INSERT INTO public.customers (user_id, name, email, cpf, phone)
   VALUES (
@@ -197,8 +217,7 @@ REVOKE ALL ON FUNCTION public.upsert_customer_profile(TEXT, TEXT, TEXT, TEXT) FR
 GRANT EXECUTE ON FUNCTION public.upsert_customer_profile(TEXT, TEXT, TEXT, TEXT) TO authenticated;
 
 -- -------------------------------------------------------------------
--- PASSO 7 — Corrigir admin_update_customer
---   Normaliza CPF para dígitos puros ao atualizar via painel admin
+-- PASSO 8 — Corrigir admin_update_customer (salva CPF normalizado)
 -- -------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.admin_update_customer(
   customer_id_input BIGINT,
@@ -228,9 +247,8 @@ BEGIN
     RAISE EXCEPTION 'O usuário administrador não pode ser alterado.' USING ERRCODE = '42501';
   END IF;
 
-  -- Normaliza CPF para apenas dígitos
   v_cpf := regexp_replace(COALESCE(cpf_input, ''), '\D', '', 'g');
-  IF v_cpf = '' THEN v_cpf := NULL; END IF;
+  IF v_cpf = '' OR length(v_cpf) <> 11 THEN v_cpf := NULL; END IF;
 
   UPDATE public.customers
   SET
@@ -246,9 +264,7 @@ REVOKE ALL ON FUNCTION public.admin_update_customer(BIGINT, TEXT, TEXT, TEXT, TE
 GRANT EXECUTE ON FUNCTION public.admin_update_customer(BIGINT, TEXT, TEXT, TEXT, TEXT) TO authenticated;
 
 -- -------------------------------------------------------------------
--- PASSO 8 — Reescrever get_customer_login_email como plpgsql
---   LANGUAGE plpgsql + SECURITY DEFINER = acesso garantido a auth.users
---   mesmo quando chamada por anon (usuário não autenticado)
+-- PASSO 9 — Reescrever get_customer_login_email como plpgsql
 -- -------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.get_customer_login_email(login_input TEXT)
 RETURNS TEXT
@@ -257,14 +273,13 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-  v_login    TEXT  := lower(trim(COALESCE(login_input, '')));
-  v_digits   TEXT  := regexp_replace(COALESCE(login_input, ''), '\D', '', 'g');
+  v_login    TEXT    := lower(trim(COALESCE(login_input, '')));
+  v_digits   TEXT    := regexp_replace(COALESCE(login_input, ''), '\D', '', 'g');
   v_is_email BOOLEAN := position('@' IN lower(trim(COALESCE(login_input, '')))) > 0;
   v_email    TEXT;
 BEGIN
   -- ── E-MAIL ────────────────────────────────────────────────────────
   IF v_is_email THEN
-    -- Busca em auth.users (SECURITY DEFINER permite acesso mesmo de anon)
     SELECT lower(trim(au.email)) INTO v_email
     FROM auth.users au
     WHERE lower(trim(au.email)) = v_login
@@ -275,7 +290,7 @@ BEGIN
   -- ── CPF ───────────────────────────────────────────────────────────
   IF length(v_digits) <> 11 THEN RETURN NULL; END IF;
 
-  -- Tentativa A: CPF nos metadados auth.users
+  -- A: CPF nos metadados auth.users
   SELECT lower(trim(au.email)) INTO v_email
   FROM auth.users au
   WHERE regexp_replace(COALESCE(au.raw_user_meta_data->>'cpf', ''), '\D', '', 'g') = v_digits
@@ -283,7 +298,7 @@ BEGIN
   LIMIT 1;
   IF v_email IS NOT NULL THEN RETURN v_email; END IF;
 
-  -- Tentativa B: CPF em customers com user_id vinculado → pega email de auth.users
+  -- B: CPF em customers com user_id vinculado
   SELECT lower(trim(au.email)) INTO v_email
   FROM public.customers c
   JOIN auth.users au ON au.id = c.user_id
@@ -292,7 +307,7 @@ BEGIN
   LIMIT 1;
   IF v_email IS NOT NULL THEN RETURN v_email; END IF;
 
-  -- Tentativa C: CPF em customers com JOIN por email em auth.users (sem user_id)
+  -- C: CPF em customers com JOIN por email
   SELECT lower(trim(au.email)) INTO v_email
   FROM public.customers c
   JOIN auth.users au ON lower(trim(au.email)) = lower(trim(c.email))
@@ -301,7 +316,7 @@ BEGIN
   LIMIT 1;
   IF v_email IS NOT NULL THEN RETURN v_email; END IF;
 
-  -- Tentativa D: CPF em customers sem auth.users (retorna email do cadastro)
+  -- D: CPF em customers sem auth (retorna email do cadastro)
   SELECT lower(trim(c.email)) INTO v_email
   FROM public.customers c
   WHERE regexp_replace(COALESCE(c.cpf, ''), '\D', '', 'g') = v_digits
@@ -314,7 +329,6 @@ $$;
 REVOKE ALL ON FUNCTION public.get_customer_login_email(TEXT) FROM public;
 GRANT EXECUTE ON FUNCTION public.get_customer_login_email(TEXT) TO anon, authenticated;
 
--- Alias legado
 CREATE OR REPLACE FUNCTION public.get_customer_email_by_cpf(cpf_input TEXT)
 RETURNS TEXT
 LANGUAGE sql
@@ -327,24 +341,31 @@ $$;
 REVOKE ALL ON FUNCTION public.get_customer_email_by_cpf(TEXT) FROM public;
 GRANT EXECUTE ON FUNCTION public.get_customer_email_by_cpf(TEXT) TO anon, authenticated;
 
--- Recarrega o schema do PostgREST para expor as funções imediatamente
 NOTIFY pgrst, 'reload schema';
 
 -- -------------------------------------------------------------------
--- PASSO 9 — Verificação final
+-- PASSO 10 — Verificação final
 -- -------------------------------------------------------------------
--- 9a. Deve mostrar todos os clientes com CPF normalizado e user_id vinculado
 SELECT
   c.id,
   c.name,
   c.email,
-  c.cpf                                                        AS cpf_normalizado,
-  CASE WHEN c.cpf ~ '^\d{11}$' THEN '✅ ok' ELSE '⚠️ inválido' END AS cpf_status,
+  c.cpf,
+  CASE WHEN c.cpf ~ '^\d{11}$' THEN '✅ ok'
+       WHEN c.cpf IS NULL       THEN '⚠️  sem CPF'
+       ELSE                          '❌ formato errado'
+  END AS cpf_status,
   CASE WHEN c.user_id IS NOT NULL THEN '✅ ok' ELSE '❌ faltando' END AS user_id_status
 FROM public.customers c
 WHERE lower(c.email) <> 'admin@edifique.com'
 ORDER BY c.id DESC;
 
--- 9b. Testar a função (substitua pelo CPF real de um cliente)
--- SELECT public.get_customer_login_email('12345678901');  -- só dígitos
--- SELECT public.get_customer_login_email('123.456.789-01');  -- com máscara
+-- Confirmar que não há mais duplicatas
+SELECT
+  regexp_replace(COALESCE(cpf, ''), '\D', '', 'g') AS cpf_digitos,
+  COUNT(*) AS total
+FROM public.customers
+WHERE cpf IS NOT NULL AND cpf <> ''
+GROUP BY regexp_replace(COALESCE(cpf, ''), '\D', '', 'g')
+HAVING COUNT(*) > 1;
+-- ^ deve retornar 0 linhas se tudo estiver certo
