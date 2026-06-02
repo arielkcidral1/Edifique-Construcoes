@@ -867,9 +867,18 @@ async function loadClientProfile() {
 
   if (!data && user.email) {
     try {
+      // Busca registro existente pelo email para preservar cpf/phone já cadastrados
+      const { data: existingByEmail } = await db
+        .from("customers")
+        .select("id, name, email, cpf, phone, avatar_url")
+        .eq("email", normalizeEmail(user.email))
+        .maybeSingle();
+
       await ensureCustomerProfile({
-        name: user.user_metadata?.name || user.email,
-        email: user.email
+        name: user.user_metadata?.name || existingByEmail?.name || user.email,
+        email: user.email,
+        cpf: user.user_metadata?.cpf || existingByEmail?.cpf || "",
+        phone: user.user_metadata?.phone || existingByEmail?.phone || ""
       });
 
       const { data: linkedData } = await db
