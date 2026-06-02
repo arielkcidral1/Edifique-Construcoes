@@ -1,3 +1,4 @@
+DROP INDEX IF EXISTS public.customers_cpf_digits_key;
 -- PASSO 1 — Limpar CPFs duplicados
 UPDATE public.customers
 SET cpf = NULL
@@ -91,3 +92,16 @@ REVOKE ALL ON FUNCTION public.upsert_customer_profile(TEXT, TEXT, TEXT, TEXT) FR
 GRANT EXECUTE ON FUNCTION public.upsert_customer_profile(TEXT, TEXT, TEXT, TEXT) TO authenticated;
 
 NOTIFY pgrst, 'reload schema';
+-- Testar direto
+SELECT public.get_customer_login_email('12417691922');
+
+-- Ver CPF nos metadados dos usuários com CPF NULL no customers
+SELECT 
+  au.id,
+  au.email,
+  au.raw_user_meta_data->>'cpf' AS cpf_meta,
+  regexp_replace(COALESCE(au.raw_user_meta_data->>'cpf', ''), '\D', '', 'g') AS cpf_digits
+FROM auth.users au
+JOIN public.customers c ON c.user_id = au.id
+WHERE c.cpf IS NULL
+  AND au.email <> 'admin@edifique.com';
