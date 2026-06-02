@@ -867,18 +867,28 @@ async function loadClientProfile() {
 
   if (!data && user.email) {
     try {
-      // Busca registro existente pelo email para preservar cpf/phone já cadastrados
+      // Busca registro existente pelo email
       const { data: existingByEmail } = await db
         .from("customers")
         .select("id, name, email, cpf, phone, avatar_url")
         .eq("email", normalizeEmail(user.email))
         .maybeSingle();
 
+      if (!existingByEmail) {
+        // Conta auth sem cadastro em customers — nao e cliente autorizado, faz logout
+        await db.auth.signOut();
+        clienteLogado = null;
+        updateClientSessionUI();
+        runInBackground(updateCondominiumsMenu, "Nao foi possivel atualizar o menu de condominios:");
+        return;
+      }
+
+      // Existe cadastro: vincula o user_id preservando cpf/phone existentes
       await ensureCustomerProfile({
-        name: user.user_metadata?.name || existingByEmail?.name || user.email,
+        name: existingByEmail.name || user.email,
         email: user.email,
-        cpf: user.user_metadata?.cpf || existingByEmail?.cpf || "",
-        phone: user.user_metadata?.phone || existingByEmail?.phone || ""
+        cpf: existingByEmail.cpf || user.user_metadata?.cpf || "",
+        phone: existingByEmail.phone || user.user_metadata?.phone || ""
       });
 
       const { data: linkedData } = await db
@@ -1753,6 +1763,13 @@ document.getElementById("formClienteLogin")?.addEventListener("submit", async fu
     }
 
     await loadClientProfile();
+
+    // Se após o login clienteLogado for null, o email nao tem cadastro autorizado
+    if (!clienteLogado) {
+      errorBox.textContent = "Conta nao cadastrada. Preencha o formulario de cadastro para continuar.";
+      return;
+    }
+
     closeClientAuth();
     updateClientSessionUI();
     runInBackground(updateCondominiumsMenu, "Nao foi possivel atualizar o menu de condominios:");
