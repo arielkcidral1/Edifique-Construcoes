@@ -778,36 +778,90 @@ async function loadAccountDocuments() {
   }
 }
 
+// ===============================
+// ===============================
+// resolveEmailFromCredential
+// ===============================
+function extractEmail(data) {
+  if (!data) return "";
+  if (typeof data === "string") return normalizeEmail(data);
+  if (Array.isArray(data)) return normalizeEmail(data[0]?.email || data[0] || "");
+  return normalizeEmail(data.email || "");
+}
+
 async function resolveEmailFromCredential(credential) {
   if (!db) return "";
 
   const login = (credential || "").trim();
   if (!login) return "";
 
+  // --- É e-mail: retorna direto ---
   if (login.includes("@")) return normalizeEmail(login);
 
+  // --- É CPF: extrai só os dígitos ---
   const cpf = normalizeCpf(login);
   if (cpf.length !== 11) return "";
 
-  const readRpcEmail = (data) => {
-    if (typeof data === "string") return normalizeEmail(data);
-    if (Array.isArray(data)) return normalizeEmail(data[0]?.email || data[0]);
-    return normalizeEmail(data?.email);
-  };
+  const cpfFormatado = formatCpf(cpf);
+  console.log("[cpf-login] buscando email para CPF:", cpf);
 
+  // Tentativa 1: RPC principal com dígitos puros
   try {
     const { data, error } = await db.rpc("get_customer_login_email", { login_input: cpf });
-    if (error?.code !== "PGRST202" && error?.code !== "42883") {
-      if (error) throw error;
-      return readRpcEmail(data);
-    }
-  } catch (error) {
-    if (error?.code !== "PGRST202" && error?.code !== "42883") throw error;
-  }
+    console.log("[cpf-login] RPC (dígitos):", { data, error: error?.message });
+    const email = extractEmail(data);
+    if (!error && email) return email;
+  } catch (e) { console.warn("[cpf-login] RPC (dígitos) exception:", e.message); }
 
-  const { data, error } = await db.rpc("get_customer_email_by_cpf", { cpf_input: cpf });
-  if (error) throw error;
-  return readRpcEmail(data);
+  // Tentativa 2: RPC principal com CPF formatado (000.000.000-00)
+  try {
+    const { data, error } = await db.rpc("get_customer_login_email", { login_input: cpfFormatado });
+    console.log("[cpf-login] RPC (formatado):", { data, error: error?.message });
+    const email = extractEmail(data);
+    if (!error && email) return email;
+  } catch (e) { console.warn("[cpf-login] RPC (formatado) exception:", e.message); }
+
+  // Tentativa 3: RPC legada
+  try {
+    const { data, error } = await db.rpc("get_customer_email_by_cpf", { cpf_input: cpf });
+    console.log("[cpf-login] RPC legada:", { data, error: error?.message });
+    const email = extractEmail(data);
+    if (!error && email) return email;
+  } catch (e) { console.warn("[cpf-login] RPC legada exception:", e.message); }
+
+  // Tentativa 4: busca direta na tabela customers — CPF só dígitos
+  try {
+    const { data, error } = await db
+      .from("customers").select("email").eq("cpf", cpf)
+      .not("email", "is", null).limit(1).maybeSingle();
+    console.log("[cpf-login] customers CPF dígitos:", { data, error: error?.message });
+    if (!error && data?.email) return normalizeEmail(data.email);
+  } catch (e) { console.warn("[cpf-login] customers CPF dígitos exception:", e.message); }
+
+  // Tentativa 5: busca direta na tabela customers — CPF formatado
+  try {
+    const { data, error } = await db
+      .from("customers").select("email").eq("cpf", cpfFormatado)
+      .not("email", "is", null).limit(1).maybeSingle();
+    console.log("[cpf-login] customers CPF formatado:", { data, error: error?.message });
+    if (!error && data?.email) return normalizeEmail(data.email);
+  } catch (e) { console.warn("[cpf-login] customers CPF formatado exception:", e.message); }
+
+  // Tentativa 6: full-scan normalizando CPF client-side (cobre qualquer formato no banco)
+  try {
+    const { data, error } = await db
+      .from("customers").select("email, cpf")
+      .not("cpf", "is", null).not("email", "is", null);
+    console.log("[cpf-login] full-scan:", { rows: data?.length, error: error?.message });
+    if (!error && Array.isArray(data)) {
+      const found = data.find(row => normalizeCpf(row.cpf) === cpf);
+      console.log("[cpf-login] full-scan match:", found ?? "nenhum");
+      if (found?.email) return normalizeEmail(found.email);
+    }
+  } catch (e) { console.warn("[cpf-login] full-scan exception:", e.message); }
+
+  console.error("[cpf-login] CPF não encontrado em nenhuma tentativa. CPF buscado:", cpf);
+  return "";
 }
 
 async function loadClientProfile() {
